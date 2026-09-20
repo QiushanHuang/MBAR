@@ -6,7 +6,7 @@
 
 <h1 align="center">MBAR</h1>
 
-<p align="center"><strong>Your menu-bar icons, gathered into one quiet row.</strong></p>
+<p align="center"><strong>A cleaner dropdown for the macOS 27 menu bar.</strong></p>
 
 <p align="center">
   <a href="#english"><img src="https://img.shields.io/badge/Language-English-24292f" alt="English"></a>
@@ -21,24 +21,32 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-blue" alt="GPL-3.0"></a>
 </p>
 
-MBAR is a native macOS menu-bar organizer. Choose which apps stay visible, which
-belong in a compact dropdown, and which stay out of the way. Open the shelf with
-one click and interact with the original apps' menus.
+**macOS 27 changed the menu bar. Get your frequently used icons back within easy reach.**
+MBAR puts supported apps' original menu icons in a compact dropdown below its
+entry—close to your pointer, without capturing the menu-bar background.
 
 [**Download MBAR**](https://github.com/QiushanHuang/MBAR/releases/latest) ·
 [Getting started](#install) · [App compatibility](#app-compatibility) ·
 [Release notes](docs/releases/v0.4.0.md) · [Report an issue](https://github.com/QiushanHuang/MBAR/issues)
 
-## Why MBAR
+## Why choose MBAR on macOS 27?
 
-| What you need | What MBAR provides |
+macOS 27's menu-bar redesign disrupted older per-icon capture techniques. Its
+native overflow expands leftward along the top bar; screenshot-based panels can
+face clipped, faded or background-tinted icons. **MBAR pairs a dropdown close to
+your pointer with direct loading of original icon resources.**
+
+| The friction | Why choose MBAR |
 | --- | --- |
-| Less menu-bar clutter | Per-app Visible, Auto-hide and Always-hide categories |
-| A compact place for everyday tools | One translucent row, horizontal scrolling and a settings button |
-| Recognizable menu icons | Original menu-bar artwork from supported installed apps |
-| A shelf that stays open | Optional lock button; unlock when you want to dismiss it |
-| A quick way back | **Show all icons** pauses hiding immediately |
-| A small local utility | Swift, AppKit and SwiftUI; no account, analytics or network service |
+| Native overflow sends you left along the top bar to find a tool | **Less pointer travel:** frequently used icons sit together below the MBAR entry |
+| Screen crops can include background, lose edges or look soft after resizing | **Cleaner artwork:** supported apps' original menu resources, without captured wallpaper or menu-bar pixels |
+| Some capture paths need hidden icons revealed before taking a snapshot | **Less visual disruption:** no expand–capture–collapse cycle to populate the shelf |
+| Capturing menu-bar images requires Screen Recording access | **One less permission:** the current resource-based shelf needs no Screen Recording permission |
+
+Best for a small collection of supported apps you open often. Artwork is static,
+Accessibility is required, and resource adapters do not yet cover every app.
+[Architecture and capture references](#original-artwork-without-the-screenshot-baggage)
+explain the method comparison; these issues do not affect every competing implementation.
 
 **Early release:** hiding uses a private macOS 27 interface and remains experimental.
 The current app UI is in Simplified Chinese; this README documents both languages.
@@ -259,24 +267,30 @@ The Pelmet-derived bridge retains its original copyright and attribution in
   <a href="#中文"><img src="https://img.shields.io/badge/语言-简体中文-1677ff" alt="简体中文"></a>
 </p>
 
-**把菜单栏图标，轻轻收成一排。**
+**为 macOS 27，做一个更干净、更顺手的下拉栏。**
 
-MBAR 是面向 macOS 的原生菜单栏收纳工具。常用应用保留在顶栏，其余放进简洁的
-下拉栏，或设为总是隐藏。点击箭头展开，用熟悉的菜单图标打开原应用菜单。
+macOS 27 改了菜单栏，常用工具依然应该触手可及。
+MBAR 把已适配应用的原始菜单图标放在入口下方：**少挪鼠标，不截背景，点开就选。**
 
 [**下载 MBAR**](https://github.com/QiushanHuang/MBAR/releases/latest) ·
 [版本说明](docs/releases/v0.4.0.md) · [反馈问题](https://github.com/QiushanHuang/MBAR/issues)
 
-### 能做什么
+### macOS 27 上，为什么选 MBAR？
 
-| 使用场景 | 功能 |
+macOS 27 重构菜单栏后，旧有的独立图标采集方式受到影响。原生溢出区沿顶栏向左展开，
+截图式面板则可能遇到图标残缺、淡化或带入背景的问题。
+**MBAR 用“入口下方的紧凑下拉栏 + 原始图标资源”，同时改善取用距离和显示观感。**
+
+| 你可能遇到的问题 | MBAR 为什么更适合 |
 | --- | --- |
-| 菜单栏太拥挤 | 按应用设置常驻、自动隐藏、总是隐藏 |
-| 随手打开常用工具 | 单行半透明下拉栏，横向滚动，齿轮进入设置 |
-| 保留熟悉的菜单图标 | 从已适配应用读取原始菜单图标资源 |
-| 希望面板保持打开 | 可选锁定按钮，解锁后恢复正常收起 |
-| 随时恢复 | “显示全部”立即暂停隐藏 |
-| 保持轻量和本地化 | Swift、AppKit、SwiftUI；无账号、遥测或网络服务 |
+| 原生向左展开，还要沿着顶栏移动鼠标找图标 | **少挪鼠标：**常用图标集中在入口下方，展开后就近选择 |
+| 截图含背景、裁切缺边，或缩放后不清晰 | **图标更干净：**直接读取已适配应用的原始菜单资源，不截入壁纸或菜单栏底色 |
+| 部分采集方式要先展开隐藏图标，再截图收回 | **减少视觉打扰：**填充下拉栏无需“展开—截图—收回” |
+| 为获取菜单栏图像需要授予录屏权限 | **少一项授权：**当前资源式下拉栏无需录屏权限 |
+
+适合将少量常用、已适配的应用集中收纳。图标是静态资源，操作仍需辅助功能权限，
+目前也未覆盖所有应用。下方提供技术依据和适配范围；上述问题是截图路径可能遇到的局限，
+并非所有同类产品都会出现。
 
 **这是早期版本。** 隐藏依赖 macOS 27 私有接口，仍属实验功能。
 当前应用界面为简体中文。下拉栏显示静态原始图标，不代表实时连接状态，也不持续复现动态图表。
