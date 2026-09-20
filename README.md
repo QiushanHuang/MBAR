@@ -263,6 +263,10 @@ The Pelmet-derived bridge retains its original copyright and attribution in
 ## 中文
 
 <p align="center">
+  <img src="docs/images/mbar-icon.png" alt="MBAR — 将菜单栏图标收进紧凑的下拉栏" width="144">
+</p>
+
+<p align="center">
   <a href="#english"><img src="https://img.shields.io/badge/Language-English-24292f" alt="English"></a>
   <a href="#中文"><img src="https://img.shields.io/badge/语言-简体中文-1677ff" alt="简体中文"></a>
 </p>
