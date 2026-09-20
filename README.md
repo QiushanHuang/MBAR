@@ -44,6 +44,59 @@ one click and interact with the original apps' menus.
 The current app UI is in Simplified Chinese; this README documents both languages.
 Original artwork is static, not a live mirror of connection state or animated charts.
 
+### macOS 27 changed the menu bar. MBAR changes how you reach it.
+
+macOS 27 introduced a native `«` overflow control and consolidated menu-bar
+rendering into a shared `MenuBarAgent` window. Older techniques that depended on
+separate icon windows can no longer be carried over unchanged. The native overflow
+reveals additional items along the top bar, extending leftward; it does not provide
+a separate dropdown shelf. See [MenubarHide's macOS 27 implementation notes](https://github.com/junior-rj/menubar-hide#macos-27).
+
+**Keep your tools close to the click.** MBAR opens a compact row below its entry.
+For a small collection of frequently used tools, that means less horizontal
+pointer travel and less searching along the top edge—especially on a wide screen.
+This is a layout advantage, not a measured speed claim; the benefit depends on your
+icon count and arrangement.
+
+| Everyday interaction | MBAR's approach |
+| --- | --- |
+| Open the shelf, then choose a tool | Icons appear together below the entry, within a short pointer movement |
+| Keep the native bar visually settled while browsing | Loading shelf artwork does not expand the system overflow to take a picture |
+| Reach several tools in succession | Lock the shelf open and keep the same row available |
+| Separate everyday tools from rarely used ones | Auto-hide appears in the shelf; Always-hide stays out of it |
+
+The shelf has its own horizontal scrolling area rather than competing for the
+remaining space beside app menus and the notch. Clicking a tool may still reveal
+its native item to open the original menu.
+
+### Original artwork, without the screenshot baggage
+
+Some secondary-bar implementations capture menu-bar imagery and display cropped
+snapshots. For example, [iBar's permission explanation](https://www.better365.com/h-nd-183.html)
+describes obtaining icons from screen images. Such a route can preserve rendered
+status information, but its result depends on what the system makes capturable.
+
+**MBAR reads supported apps' original menu-icon resources directly.** It draws the
+icon on the shelf's own background, without sampling wallpaper or menu-bar pixels.
+
+| Screenshot/crop risk | What resource loading avoids in MBAR |
+| --- | --- |
+| Background or tint gets baked into the crop | No captured desktop or menu-bar background around the icon |
+| Cropping or rescaling softens edges or clips part of a glyph | Original resource pixels or vector representations, drawn at the shelf's size; quality still depends on the source asset |
+| Occlusion, inactive-display dimming or changing coordinates affect the image | Artwork loading is independent of the icon's on-screen visibility and crop rectangle |
+| Hidden icons need to be revealed before capture | No expand–capture–collapse cycle just to populate the shelf |
+| Screen Recording permission is needed for image acquisition | No Screen Recording permission for the current resource-based shelf; Accessibility is still required |
+
+These are differences between rendering methods, not a claim that every screenshot
+implementation looks wrong. [Pelmet's source history](https://github.com/fif7y/pelmet/blob/be992df108355c8673621a5ba66ce94cf98daff0/Pelmet/Editor/ItemImageCache.swift)
+records dimming, notch occlusion and identifier drift in its former shared-window
+capture path—concrete examples of why capture can be fragile.
+
+**The tradeoff is deliberate:** clean, complete source artwork for adapted apps,
+rather than a live reproduction of every app's changing icon. Unsupported apps
+still need adapters, and status-specific artwork or custom charts may not match
+what is currently drawn in the native bar. See [App compatibility](#app-compatibility).
+
 ## Install
 
 Requires **macOS 27 and an Apple Silicon Mac**. The release is ad-hoc signed,
@@ -227,6 +280,52 @@ MBAR 是面向 macOS 的原生菜单栏收纳工具。常用应用保留在顶�
 
 **这是早期版本。** 隐藏依赖 macOS 27 私有接口，仍属实验功能。
 当前应用界面为简体中文。下拉栏显示静态原始图标，不代表实时连接状态，也不持续复现动态图表。
+
+### macOS 27 改了菜单栏，MBAR 让常用工具更顺手
+
+macOS 27 加入了原生 `«` 溢出入口，并将菜单栏绘制整合到共享的 `MenuBarAgent`
+窗口中。过去依赖独立图标窗口的管理、采集方式因此不能直接照搬。
+原生溢出区沿顶栏向左展开更多项目，没有单独的下拉收纳栏。
+相关技术变化见 [MenubarHide 的 macOS 27 实现说明](https://github.com/junior-rj/menubar-hide#macos-27)。
+
+**点击之后，工具就在入口下方。** MBAR 将常用图标集中在紧凑的一排里，
+减少沿顶栏横向移动鼠标、逐个寻找图标的需要。对常用项目不多、屏幕较宽的场景尤其方便。
+这是布局带来的便利，实际收益取决于图标数量和排列，并非经过计时测试的效率承诺。
+
+| 日常操作 | MBAR 的优势 |
+| --- | --- |
+| 展开后选择工具 | 图标集中在入口下方，鼠标短距离移动即可选择 |
+| 浏览收纳图标 | 读取图标不需要展开系统溢出区取图，减少顶栏展开、收回的视觉打扰 |
+| 连续使用几个工具 | 锁定下拉栏，让同一排入口保持可用 |
+| 区分常用与少用项目 | 自动隐藏进入下拉栏，总是隐藏不占普通下拉栏空间 |
+
+下拉栏拥有独立的横向滚动空间，不必与应用菜单、刘海两侧的顶栏余量争位置。
+点击具体工具打开原菜单时，仍可能临时显示它的原生图标。
+
+### 直接读取原始图标，减少截图带来的显示问题
+
+部分二级菜单栏通过屏幕图像获取图标，再将裁切后的快照放进面板。
+例如 [iBar 的权限说明](https://www.better365.com/h-nd-183.html)介绍了这类图像获取方式。
+截图能够保留当时绘制的状态信息，但也受系统实际可采集内容的影响。
+
+**MBAR 直接读取已适配应用自带的原始菜单图标资源**，在自己的下拉栏背景上绘制，
+无需从桌面或菜单栏画面中抠图。
+
+| 截图裁切可能遇到的问题 | MBAR 原始资源方式的优势 |
+| --- | --- |
+| 截图带入背景、壁纸颜色或底色 | 不采集图标周围的屏幕背景，减少背景色块与面板不一致的问题 |
+| 裁切或二次缩放造成边缘不清晰、图标残缺 | 使用原始像素或矢量表示按面板尺寸绘制；清晰度仍取决于源素材 |
+| 刘海遮挡、非活动屏幕淡化、坐标变化导致显示异常 | 读取资源不依赖图标当前是否可见，也不依赖屏幕裁切坐标 |
+| 必须先把隐藏图标展开才能取图 | 填充下拉栏无需经历“展开—截图—收回” |
+| 获取图像需要录屏权限 | 当前资源式下拉栏无需录屏权限；操作菜单仍需辅助功能权限 |
+
+这里比较的是实现方式，不代表所有截图型工具都会显示异常。
+[Pelmet 的源码记录](https://github.com/fif7y/pelmet/blob/be992df108355c8673621a5ba66ce94cf98daff0/Pelmet/Editor/ItemImageCache.swift)
+曾明确提到共享窗口采集中的淡化、刘海遮挡和标识漂移问题，为这类局限提供了具体实例。
+
+**MBAR 的取舍是：优先提供已适配应用干净、完整的原始图标。**
+它不是实时镜像，未适配应用仍需补充支持，连接状态变体和自绘图表也可能与顶栏当前画面不同。
+适配范围见下方“图标兼容性”。
 
 ### 安装
 
