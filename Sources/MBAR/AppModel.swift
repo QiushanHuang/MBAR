@@ -22,12 +22,12 @@ import MBARCore
         showsButton: UserDefaults.standard.object(forKey: "showShelfLockButton") as? Bool ?? true)
     let discovery = MenuDiscovery()
     let hiding = HidingService()
-    private let iconSource = MenuIconSource()
+    let iconLibrary = IconLibrary()
+    @Published var iconSettingsBundle: String?
+    private var applicationRefreshTask: Task<Void, Never>?
     private var refreshGeneration = 0
     private var refreshWaiters: [() -> Void] = []
     private var interactionGeneration = 0
-    private var snapshotSession = SnapshotSession()
-    private var snapshotTask: Task<Void, Never>?
     private var menuObserver: AXObserver?
     private var observedElement: AXUIElement?
     private var menuContext: MenuContext?
@@ -62,6 +62,11 @@ import MBARCore
         let legacy = Set(UserDefaults.standard.stringArray(forKey: "selectedBundles") ?? [])
         policy = ShelfPolicy(assignments: saved, legacySelected: legacy)
         UserDefaults.standard.set(policy.assignments.mapValues(\.rawValue), forKey: "itemCategories")
+        iconLibrary.onChange = { [weak self] in
+            guard let self else { return }
+            self.objectWillChange.send()
+            if self.shelfRequested || self.shelfVisible?() == true { self.publishIconPreviews() }
+        }
         hiding.onChange = { [weak self] phase, message in
             guard let self else { return }
             self.phase = phase
@@ -87,7 +92,7 @@ import MBARCore
         let previouslyTrusted = trusted
         trusted = AXIsProcessTrusted(); captureGranted = CGPreflightScreenCaptureAccess()
         if trusted && !previouslyTrusted { error = nil }
-        if !trusted { restoreAll(); items = []; error = "需要辅助功能权限才能读取和打开菜单栏项目。" }
+        if !trusted { restoreAll(); items = []; iconLibrary.reconcile([], priority: []); error = "需要辅助功能权限才能读取和打开菜单栏项目。" }
     }
     func requestAccessibility() {
         let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
@@ -123,6 +128,7 @@ import MBARCore
                 self.items = snapshot.items
                 let valid = Set(snapshot.items.map(\.id))
                 self.previews = self.previews.filter { valid.contains($0.key) }
+                self.iconLibrary.reconcile(self.items, priority: self.policy.automatic)
                 self.status = self.items.isEmpty ? "没有发现可读取的菜单栏图标" : "已发现 \(self.groups.count) 个应用"
             }
             self.onShelfContentChanged?()
@@ -161,7 +167,7 @@ import MBARCore
         onRecovery?()
     }
     func shutdown() {
-        cancelSnapshots(); interactionGeneration += 1; stopMenuObserver()
+        cancelSnapshots(); applicationRefreshTask?.cancel(); iconLibrary.shutdown(); interactionGeneration += 1; stopMenuObserver()
         hiding.restore() // Preserve the user's enabled preference across normal restart.
     }
     func suspendForSystemChange() {
@@ -173,24 +179,33 @@ import MBARCore
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in self?.refresh { self?.applyHiding() } }
     }
     func refreshForApplicationChange() {
+        // Invalidate departed processes immediately, before the coalesced AX scan.
+        for item in items where NSRunningApplication(processIdentifier: item.pid)?.isTerminated != false {
+            iconLibrary.remove(item.bundle)
+        }
         if let element = observedElement {
             var pid: pid_t = 0; AXUIElementGetPid(element, &pid)
             if NSRunningApplication(processIdentifier: pid)?.isTerminated != false {
                 interactionGeneration += 1; stopMenuObserver()
             }
         }
-        refresh { [weak self] in
-            guard let self else { return }
-            if self.menuObserver == nil { self.applyHiding() }
-            if self.shelfVisible?() == true {
-                self.updatePreviews { [weak self] in self?.onShelfContentChanged?() }
+        applicationRefreshTask?.cancel()
+        applicationRefreshTask = Task { [weak self] in
+            // Coalesce launch bursts, then retry delayed status-item creation a bounded number of times.
+            for delay in [100_000_000, 400_000_000, 1_000_000_000, 1_500_000_000] as [UInt64] {
+                do { try await Task.sleep(nanoseconds: delay) } catch { return }
+                guard let self, !Task.isCancelled else { return }
+                self.refresh { [weak self] in
+                    guard let self else { return }
+                    if self.menuObserver == nil { self.applyHiding() }
+                    if self.shelfVisible?() == true { self.publishIconPreviews() }
+                }
             }
         }
     }
+
     func cancelSnapshots(clearRequest: Bool = true) {
-        snapshotSession.cancel()
-        snapshotTask?.cancel()
-        snapshotTask = nil; capturing = false
+        capturing = false
         if clearRequest { shelfRequested = false; onPreparationCancelled?() }
     }
     func endShelfSession() {
@@ -209,33 +224,30 @@ import MBARCore
     func updatePreviews(completion: @escaping () -> Void) {
         checkPermissions()
         guard (shelfRequested || shelfVisible?() == true), trusted else { return }
-        cancelSnapshots(clearRequest: false)
-        let inputs = collected
-        let token = snapshotSession.begin()
-        capturing = true
-        // Deliberately no visibility assertion, overflow action, or screen crop.
-        // Both hidden sections remain concealed throughout icon loading.
-        snapshotTask = Task { [weak self] in
-            guard let self else { return }
-            let loaded = await self.iconSource.load(inputs)
-            guard self.snapshotSession.accepts(token), !Task.isCancelled,
-                  self.shelfRequested || self.shelfVisible?() == true else { return }
-            self.previews = loaded.images
-            self.iconSources = loaded.sources
-            self.snapshotDate = Date()
-            UserDefaults.standard.set([
-                "requested": inputs.map(\.id), "loaded": loaded.images.keys.sorted(),
-                "sources": loaded.sources, "failures": loaded.failures, "timestamp": ISO8601DateFormatter().string(from: Date())
-            ], forKey: "lastIconSourceDiagnostics")
-            let missing = inputs.filter { loaded.images[$0.id] == nil }
-            self.error = missing.isEmpty ? nil : "图标未就绪：" + missing.map {
-                "\($0.name)（\(loaded.failures[$0.id] ?? "图像读取失败")）"
-            }.joined(separator: "、")
-            self.status = "已读取 \(loaded.images.count) 个完整菜单图标"
-            self.capturing = false; self.shelfRequested = false
-            self.snapshotSession.cancel(); self.snapshotTask = nil
-            completion()
+        // Discovery continues independently. Opening the shelf never waits for a directory scan.
+        iconLibrary.reconcile(items, priority: policy.automatic)
+        publishIconPreviews()
+        capturing = false; shelfRequested = false
+        completion()
+    }
+    private func publishIconPreviews() {
+        var images: [String: NSImage] = [:], sources: [String: String] = [:], failures: [String: String] = [:]
+        for item in collected {
+            let entry = iconLibrary.entry(item.bundle)
+            if let image = entry.image { images[item.id] = image; sources[item.id] = entry.state.rawValue + "：" + entry.source }
+            else { failures[item.id] = entry.message.isEmpty ? entry.state.rawValue : entry.message }
         }
+        previews = images; iconSources = sources; snapshotDate = Date()
+        UserDefaults.standard.set([
+            "requested": collected.map(\.id), "loaded": images.keys.sorted(), "sources": sources,
+            "failures": failures, "timestamp": ISO8601DateFormatter().string(from: Date())
+        ], forKey: "lastIconSourceDiagnostics")
+        status = "已准备 \(images.count) 个图标"
+        onShelfContentChanged?()
+    }
+    func configureIcon(_ bundle: String) {
+        showSettings?()
+        iconSettingsBundle = bundle
     }
     // Application icons are used only to identify apps in Settings, never in the shelf.
     func settingsIcon(for item: MenuItem) -> NSImage {

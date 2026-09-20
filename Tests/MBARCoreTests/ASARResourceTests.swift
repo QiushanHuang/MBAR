@@ -22,4 +22,13 @@ final class ASARResourceTests: XCTestCase {
         XCTAssertNil(ASARResource.extract(from: try archive(unpacked: true), path: "icons/tray.png"))
         XCTAssertNil(ASARResource.extract(from: try archive(), path: "../icons/tray.png"))
     }
+    func testListsBoundedEntriesAndMarksIncompleteArchive() throws {
+        let index = try ASARResource.index(from: archive())
+        XCTAssertEqual(index.paths, ["icons/tray.png"])
+        XCTAssertTrue(index.complete)
+        XCTAssertEqual(index.extract("icons/tray.png"), Data("abc".utf8))
+        XCTAssertFalse(try ASARResource.index(from: archive(), maxEntries: 1).complete)
+        XCTAssertFalse(try ASARResource.index(from: archive(unpacked: true)).complete)
+        XCTAssertThrowsError(try ASARResource.index(from: Data([4, 0, 0, 0])))
+    }
 }

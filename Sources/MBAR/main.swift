@@ -2,6 +2,13 @@ import AppKit
 import ApplicationServices
 import MBARBridge
 
+#if DEBUG
+if CommandLine.arguments.contains("--icon-settings-preview") {
+    MainActor.assumeIsolated { IconSettingsPreview.run() }
+    exit(0)
+}
+#endif
+
 if CommandLine.arguments.contains("--diagnostics") {
     print("MBAR \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "development")")
     print("macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)")

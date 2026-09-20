@@ -116,7 +116,7 @@ final class ShelfPanel: NSPanel {
         }
         NSApp.activate(ignoringOtherApps: true)
         settings?.makeKeyAndOrderFront(nil)
-        model.checkPermissions()
+        model.refresh()
     }
     @objc func toggleShelf() {
         if model.shelfRequested { model.cancelSnapshots(); model.applyHiding(); statusItem.button?.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "MBAR"); return }

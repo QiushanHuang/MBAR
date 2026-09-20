@@ -10,7 +10,7 @@ struct LoadedMenuIcons {
 /// Reads the owning app's menu-bar artwork, never its application icon and never
 /// a crop of the screen. Only known resource names or verified embedded images
 /// are accepted. Does not load/execute another bundle's executable.
-@MainActor final class MenuIconSource {
+@MainActor final class VerifiedMenuIconSource {
     private var cache: [String: NSImage] = [:]
     private var cacheSources: [String: String] = [:]
 

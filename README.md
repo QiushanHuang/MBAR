@@ -178,9 +178,22 @@ artwork may change in an upstream update.
 | Verified embedded image | Macs Fan Control, Clash Verge Rev |
 
 For Clash Verge Rev, exposed speed text is read once when the shelf opens; it is
-not continuously updated. Unsupported apps, changed resources and apps with
-multiple menu items can show a disabled placeholder. MBAR reports the missing
-source instead of replacing it with the app's Dock icon. Keep such apps **Visible**.
+not continuously updated.
+
+On `main`, MBAR also discovers static icon candidates in an app's resource
+directory and packed Electron ASAR files. A unique high-confidence candidate is
+labelled **Automatically matched**; ambiguous candidates require one selection
+under Settings → **图标…**. You can preview both backgrounds, choose template or
+original colors, import a PNG/TIFF/JPEG, restore automatic matching, and undo the
+last change. Imported images are explicitly labelled **Custom**.
+
+New apps remain **Visible** until you choose Automatic hiding. A missing shelf
+icon opens its icon settings instead of forwarding a menu click. User-selected
+resources are revalidated after updates; changed content requires confirmation.
+Incomplete scans never trigger automatic adoption. Multiple-item apps, arbitrary
+Assets.car extraction, binary discovery and dynamic status reproduction remain
+unsupported. These changes are not included in the v0.4.0 downloads; build `main`
+to try them instead of checking out the release tag below.
 
 ## Permissions, privacy and limits
 
@@ -190,7 +203,9 @@ source instead of replacing it with the app's Dock icon. Keep such apps **Visibl
 - Icons are loaded from locally installed apps; third-party artwork is not bundled
   in MBAR. It does not execute those apps' binaries to extract artwork.
 - Preferences and recent icon-source diagnostics are stored locally in macOS
-  UserDefaults. MBAR has no account, telemetry or network backend.
+  UserDefaults. Icon mappings, one-step undo, and normalized imported images live
+  in `~/Library/Application Support/MBAR/`; candidates stay in memory.
+  MBAR has no account, telemetry or network backend.
 - The private hiding API can affect system extras, including clicking the clock to
   open Notification Center. Use **Show all icons** if that happens. macOS updates
   or other menu-bar managers can change the behavior.
@@ -412,15 +427,24 @@ shasum -a 256 MBAR-0.4.0-macos-arm64.dmg
 | 校验过的内嵌图片 | Macs Fan Control、Clash Verge Rev |
 
 Clash Verge Rev 的速度文字在每次展开时读取一次，不持续更新。
-未适配、资源变化或拥有多个菜单项目的应用可能显示不可点击的占位符。
-MBAR 会提示缺失来源，不会用 Dock 应用图标冒充菜单图标；这些应用建议设为**常驻菜单栏**。
+`main` 分支新增了静态图标自动适配（v0.4.0 下载包尚未包含；体验时构建 `main`，不切换到下方发行标签）：
+
+- 自动搜索应用资源目录和 Electron ASAR。唯一高可信候选标注“自动匹配”；扫描不完整时不自动采用。
+- 在设置的 **图标…** 中选择候选，预览浅色/深色背景，并选择保留原色或随菜单栏着色。
+- 找不到合适候选时，可导入 PNG、TIFF、JPEG；图片会标注“自定义”，先预览再保存。
+- 选择持久保存，支持恢复自动匹配及撤销上次修改。更新后资源字节改变，需要重新选择。
+- 新应用默认仍为**常驻菜单栏**；缺失图标的占位入口会打开该应用的图标设置。
+
+自动匹配是启发式判断，不是原生图标一致性的验证。多个菜单项目、通用 Assets.car 解包、
+任意二进制资源发现和实时动态图标暂不支持；主题和状态变体默认交由用户确认。
 
 ### 权限、隐私与限制
 
 - **需要辅助功能权限**来读取菜单项目及转发点击。当前图标加载不需要录屏权限；
   源码中仍保留旧采集模块，但当前下拉栏不使用它。
 - 从本机已安装的应用读取图标；发行包不包含这些第三方图标，也不为提取图片执行其二进制。
-- 分类、设置及最近的图标来源诊断保存在本机 UserDefaults 中，无账号、遥测或网络后端。
+- 分类、设置及最近的图标来源诊断保存在本机 UserDefaults；图标映射、单步撤销和导入图片
+  保存在 `~/Library/Application Support/MBAR/`，候选仅保存在内存。无账号、遥测或网络后端。
 - 私有隐藏接口可能影响系统附加项，以及点击时钟打开通知中心。遇到影响请点击**显示全部**。
   macOS 更新和其他菜单栏管理器可能改变效果。
 - 点击项目时，可能临时显示该应用的原生图标以打开菜单；菜单不保证锚定在下拉栏下方。

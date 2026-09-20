@@ -15,7 +15,7 @@ struct SettingsView: View {
                 Image(systemName: "menubar.dock.rectangle").font(.system(size: 30, weight: .light)).foregroundStyle(.teal)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("MBAR").font(.system(size: 26, weight: .semibold, design: .rounded))
-                    Text("真实图标，一排收好").font(.subheadline).foregroundStyle(.secondary)
+                    Text("菜单图标，一排收好").font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "开发版")
@@ -49,9 +49,11 @@ struct SettingsView: View {
                                 Image(nsImage: model.settingsIcon(for: item)).resizable().scaledToFit().frame(width: 22, height: 22)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                                    Text(model.iconLibrary.entry(group.bundle).state.rawValue).font(.caption2).foregroundStyle(.secondary)
                                     if group.items.count > 1 { Text("\(group.items.count) 个图标一起隐藏").font(.caption).foregroundStyle(.secondary) }
                                 }
                                 Spacer(minLength: 4)
+                                Button("图标…") { model.configureIcon(group.bundle) }.font(.caption)
                                 if model.policy.category(group.bundle) != .visible {
                                     Button { model.openItem(item, right: false, fromSettings: true) } label: { Image(systemName: "arrow.up.forward.square") }
                                         .help("临时打开 \(item.name) 的菜单").accessibilityLabel("临时打开 \(item.name)")
@@ -83,12 +85,19 @@ struct SettingsView: View {
                 Text(model.status).font(.caption).foregroundStyle(.secondary)
             }
             HStack {
-                Text("原始菜单图标 · 静态资源 · 不展开系统栏").font(.caption2).foregroundStyle(.tertiary)
+                Text("静态菜单图标 · 支持自动匹配 · 不展开系统栏").font(.caption2).foregroundStyle(.tertiary)
                 Spacer()
                 Button("退出 MBAR") { NSApp.terminate(nil) }
                 Button("打开下拉栏") { (NSApp.delegate as? AppDelegate)?.toggleShelf() }.buttonStyle(.borderedProminent).tint(.teal)
             }
         }.padding(24).frame(width: 580).background(Color(nsColor: .windowBackgroundColor))
+            .sheet(isPresented: Binding(get: { model.iconSettingsBundle != nil }, set: { if !$0 { model.iconSettingsBundle = nil } })) {
+                if let bundle = model.iconSettingsBundle {
+                    IconSettingsView(library: model.iconLibrary, bundle: bundle,
+                        name: model.items.first(where: { $0.bundle == bundle })?.name ?? bundle,
+                        dismiss: { model.iconSettingsBundle = nil })
+                }
+            }
     }
     private func permissionCard(_ title: String, detail: String, button: String, action: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -109,9 +118,10 @@ struct ShelfView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
                         ForEach(model.collected, id: \.id) { item in
-                            ItemButton(image: model.previews[item.id], name: item.name,
-                                       enabled: model.previews[item.id] != nil && !model.capturing) { right in
-                                model.openItem(item, right: right)
+                            ItemButton(image: model.previews[item.id], name: model.previews[item.id] == nil ? "\(item.name)：请选择图标" : "\(item.name) · \(model.iconLibrary.entry(item.bundle).state.rawValue)",
+                                       enabled: !model.capturing) { right in
+                                if model.previews[item.id] == nil { model.configureIcon(item.bundle) }
+                                else { model.openItem(item, right: right) }
                             }.frame(width: model.previewWidth(for: item), height: 28)
                         }
                     }.frame(height: 28)
@@ -152,8 +162,8 @@ struct ItemButton: NSViewRepresentable {
             copy.size = CGSize(width: copy.size.width * ratio, height: copy.size.height * ratio)
             button.image = copy
         } else {
-            // Neutral missing-snapshot state, never an application's icon.
-            button.image = NSImage(systemSymbolName: "circle.dotted", accessibilityDescription: "快照未就绪")
+            // Missing artwork opens configuration, never substitutes an application icon.
+            button.image = NSImage(systemSymbolName: "circle.dotted", accessibilityDescription: "图标待选择")
         }
         button.isEnabled = enabled
         button.toolTip = name.trimmingCharacters(in: .whitespacesAndNewlines)
