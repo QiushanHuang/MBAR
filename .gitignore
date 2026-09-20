@@ -1,0 +1,11 @@
+.DS_Store
+.build/
+.swiftpm/
+dist/
+research/
+probes/
+docs/evidence/
+docs/superpowers/
+docs/verification.md
+docs/shelf-v2-verification.md
+*.xcuserstate
