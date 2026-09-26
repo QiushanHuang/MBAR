@@ -39,6 +39,23 @@ final class IconDiscoveryTests: XCTestCase {
         XCTAssertGreaterThan(decoded.png.count, 0)
         XCTAssertNil(IconImageDecoder.decode(Data("bad".utf8), path: "test.png"))
     }
+    func testStrongNamedResourceGetsDecodeBudgetBeforeWeakIcons() throws {
+        let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        for i in 0..<20 { try png().write(to: root.appendingPathComponent("icon-\(i).png")) }
+        let result = IconResourceDiscovery.scan(resources: root, limits: .init(maxCandidates: 1))
+        XCTAssertEqual(result.candidates.first?.locator, .file("tray/statusItemTemplate.png"))
+        XCTAssertFalse(result.complete) // Omitted candidates still prevent automatic adoption.
+    }
+    func testSmallImagesNamedAfterTheirAppBecomeManualCandidatesOnly() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let resources = root.appendingPathComponent("Example.app/Contents/Resources")
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        try png().write(to: resources.appendingPathComponent("exampleDark@2x.png"))
+        let scan = IconResourceDiscovery.scan(resources: resources)
+        XCTAssertEqual(scan.candidates.count, 1)
+        XCTAssertNil(IconRanker.automaticIndex(scan.candidates.map(\.evidence), complete: scan.complete, itemCount: 1))
+    }
     func testStrictScaleVariantsCollapseOnlyWhenRenderedArtworkMatches() throws {
         let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.removeItem(at: root.appendingPathComponent("tray/statusItemTemplate.png"))

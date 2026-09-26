@@ -23,11 +23,33 @@ import MBARCore
             }
             let library = IconLibrary(directory: root.appendingPathComponent("Store"))
             let identity = IconAppIdentity(bundleID: "local.mbar.preview", path: root.appendingPathComponent("Example.app").path, version: "1", shortVersion: "1.0")
-            library.request(IconApplication(identity: identity, resources: resources.deletingLastPathComponent(), pid: getpid(), itemCount: 1, item: nil))
+            let args = CommandLine.arguments
+            let option = args.firstIndex(of: "--preview-bundle")
+            let selectedBundle = option.flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
+            let liveApp = selectedBundle.flatMap { id in NSWorkspace.shared.runningApplications.first { $0.bundleIdentifier == id } }
+            let displayBundle = liveApp?.bundleIdentifier ?? identity.bundleID
+            let displayName = liveApp?.localizedName ?? "Example"
+            if liveApp == nil {
+                library.request(IconApplication(identity: identity, resources: resources.deletingLastPathComponent(), pid: getpid(), itemCount: 1, item: nil))
+            } else {
+                if let liveApp, let url = liveApp.bundleURL, let bundle = Bundle(url: url), let resources = bundle.resourceURL {
+                    let liveIdentity = IconAppIdentity(bundleID: displayBundle, path: url.resolvingSymlinksInPath().path,
+                        version: bundle.infoDictionary?["CFBundleVersion"] as? String ?? "",
+                        shortVersion: bundle.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
+                    library.request(IconApplication(identity: liveIdentity, resources: resources, pid: liveApp.processIdentifier, itemCount: 1, item: nil), includeCandidates: true)
+                }
+                MenuDiscovery().scan { snapshot in
+                    guard snapshot.error == nil else { return }
+                    MainActor.assumeIsolated {
+                        library.reconcile(snapshot.items.filter { $0.bundle == displayBundle }, priority: [displayBundle])
+                        library.scanCandidates(displayBundle)
+                    }
+                }
+            }
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 614, height: 650), styleMask: [.titled, .closable], backing: .buffered, defer: false)
             window.title = "MBAR 图标适配 · 开发预览"
             window.isReleasedWhenClosed = false
-            window.contentView = NSHostingView(rootView: IconSettingsView(library: library, bundle: identity.bundleID, name: "Example", dismiss: { app.terminate(nil) }))
+            window.contentView = NSHostingView(rootView: IconSettingsView(library: library, bundle: displayBundle, name: displayName, dismiss: { app.terminate(nil) }))
             window.center(); window.makeKeyAndOrderFront(nil)
             app.activate(ignoringOtherApps: true)
             print("Preview fixture: \(root.path)")

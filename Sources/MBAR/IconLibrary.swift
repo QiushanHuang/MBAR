@@ -14,6 +14,7 @@ enum IconSourceState: String {
     case idle = "等待识别", discovering = "正在寻找", verified = "已适配 · 静态", automatic = "自动匹配 · 静态"
     case userSelected = "用户选择 · 静态", custom = "自定义 · 静态", needsSelection = "待选择"
     case missing = "未找到", stale = "需要重新选择", multiple = "多个菜单项目暂不支持", failed = "读取失败"
+    case nativeSnapshot = "原生快照 · 静态"
 }
 struct IconEntry {
     var state: IconSourceState = .idle
@@ -140,13 +141,21 @@ private final class IconResourceWorker {
         func load(_ mapping: IconMapping) async -> IconEntry? {
             let decoded: IconDecodedImage? = await worker.run(priority: includeCandidates) {
                 guard !cancellation.cancelled,
+                      mapping.sourceRevision == IconResourceDiscovery.sourceRevision(mapping.locator, resources: app.resources),
                       let data = IconResourceDiscovery.read(mapping.locator, resources: app.resources, imports: imports),
                       mapping.validation(current: app.identity, digest: IconDigest.sha256(data)) == .valid else { return nil }
                 return IconImageDecoder.decode(data, path: mapping.locator.label)
             }
             guard let decoded else { return nil }
-            return IconEntry(state: mapping.origin == .custom ? .custom : (mapping.origin == .userSelected ? .userSelected : .automatic),
-                image: Self.image(decoded.png, mode: mapping.mode), source: mapping.locator.label, mapping: mapping)
+            let state: IconSourceState
+            switch mapping.origin {
+            case .custom: state = .custom
+            case .nativeSnapshot: state = .nativeSnapshot
+            case .userSelected: state = .userSelected
+            case .automatic: state = .automatic
+            }
+            return IconEntry(state: state, image: Self.image(decoded.png, mode: mapping.mode),
+                source: mapping.origin == .nativeSnapshot ? "原生菜单栏快照（\(mapping.selectedAt.formatted())）" : mapping.locator.label, mapping: mapping)
         }
         if let mapping, mapping.origin != .automatic {
             if let restored = await load(mapping) { output = restored }
@@ -170,7 +179,7 @@ private final class IconResourceWorker {
         if output.image == nil && output.state != .stale {
             if let index = IconRanker.automaticIndex(scan.candidates.map(\.evidence), complete: scan.complete, itemCount: app.itemCount) {
                 let candidate = scan.candidates[index]
-                let selected = IconMapping(identity: app.identity, locator: candidate.locator, digest: candidate.evidence.digest, mode: candidate.suggestedMode, origin: .automatic)
+                let selected = IconMapping(identity: app.identity, locator: candidate.locator, digest: candidate.evidence.digest, mode: candidate.suggestedMode, origin: .automatic, sourceRevision: candidate.sourceRevision)
                 output.image = Self.image(candidate.image.png, mode: selected.mode)
                 output.source = candidate.locator.label; output.state = .automatic; output.mapping = selected
             } else { output.state = scan.candidates.isEmpty ? .missing : .needsSelection }
@@ -215,11 +224,12 @@ private final class IconResourceWorker {
         let token = gate.begin(bundle)
         let imports = self.imports
         let valid = await worker.run(priority: true) {
-            IconResourceDiscovery.read(candidate.locator, resources: app.resources, imports: imports).map { IconDigest.sha256($0) == candidate.evidence.digest } ?? false
+            candidate.sourceRevision == IconResourceDiscovery.sourceRevision(candidate.locator, resources: app.resources) &&
+            (IconResourceDiscovery.read(candidate.locator, resources: app.resources, imports: imports).map { IconDigest.sha256($0) == candidate.evidence.digest } ?? false)
         }
         guard gate.accepts(bundle, token: token), apps[bundle]?.identity == app.identity else { throw CancellationError() }
         guard valid else { throw NSError(domain: "MBAR", code: 1, userInfo: [NSLocalizedDescriptionKey: "候选资源已变化，请重新扫描后选择。"] ) }
-        let mapping = IconMapping(identity: app.identity, locator: candidate.locator, digest: candidate.evidence.digest, mode: mode, origin: .userSelected)
+        let mapping = IconMapping(identity: app.identity, locator: candidate.locator, digest: candidate.evidence.digest, mode: mode, origin: .userSelected, sourceRevision: candidate.sourceRevision)
         try save(mapping, app: app)
     }
     func importImage(_ url: URL) async throws -> IconDecodedImage {
@@ -238,6 +248,23 @@ private final class IconResourceWorker {
         try FileManager.default.createDirectory(at: imports, withIntermediateDirectories: true)
         try decoded.png.write(to: imports.appendingPathComponent(filename), options: .atomic)
         try save(IconMapping(identity: app.identity, locator: .imported(filename), digest: digest, mode: mode, origin: .custom), app: app)
+    }
+    func canCaptureNative(_ bundle: String) -> Bool { apps[bundle]?.item != nil && apps[bundle]?.itemCount == 1 }
+    func nativePreview(_ bundle: String) async throws -> NativeIconPreview {
+        guard let app = apps[bundle], let item = app.item, app.itemCount == 1 else { throw CocoaError(.fileNoSuchFile) }
+        let prepared = try await NativeIconCapture.capture(item)
+        guard apps[bundle]?.identity == app.identity, apps[bundle]?.pid == app.pid else { throw CancellationError() }
+        return NativeIconPreview(prepared: prepared, identity: app.identity, pid: app.pid, capturedAt: Date())
+    }
+    func saveNative(_ preview: NativeIconPreview, mode: IconDisplayMode, bundle: String) throws {
+        guard let app = apps[bundle], app.itemCount == 1, app.identity == preview.identity, app.pid == preview.pid, store != nil else {
+            throw NSError(domain: "MBAR.NativeIcon", code: 2, userInfo: [NSLocalizedDescriptionKey: "应用已变化，请重新读取原生图标。"])
+        }
+        let data = preview.prepared.image.png, digest = IconDigest.sha256(data), filename = digest + ".png"
+        try FileManager.default.createDirectory(at: imports, withIntermediateDirectories: true)
+        try data.write(to: imports.appendingPathComponent(filename), options: .atomic)
+        try save(IconMapping(identity: app.identity, locator: .imported(filename), digest: digest, mode: mode,
+                             origin: .nativeSnapshot, selectedAt: preview.capturedAt), app: app)
     }
     private func save(_ mapping: IconMapping, app: IconApplication) throws {
         guard let store else { throw CocoaError(.fileWriteUnknown) }

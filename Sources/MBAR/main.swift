@@ -1,9 +1,18 @@
 import AppKit
 import ApplicationServices
 import MBARBridge
+import MBARCore
+import Darwin
+
+if let request = AppRelaunchRequest(arguments: CommandLine.arguments) {
+    let deadline = ProcessInfo.processInfo.systemUptime + 6
+    func parentIsAlive() -> Bool { kill(request.parentPID, 0) == 0 || errno == EPERM }
+    while parentIsAlive(), ProcessInfo.processInfo.systemUptime < deadline { usleep(50_000) }
+    if parentIsAlive() { exit(75) }
+}
 
 #if DEBUG
-if CommandLine.arguments.contains("--icon-settings-preview") {
+if CommandLine.arguments.contains("--icon-settings-preview") || Bundle.main.bundleIdentifier == "local.qiushan.MBAR.IconPreview" {
     MainActor.assumeIsolated { IconSettingsPreview.run() }
     exit(0)
 }

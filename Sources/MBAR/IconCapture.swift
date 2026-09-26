@@ -5,12 +5,13 @@ import MBARCore
 struct CapturedIcons {
     var images: [String: NSImage]
     var failure: String?
+    var error: Error? = nil
 }
 // A still of the menu bar only: no desktop/windows, audio, recording stream or files.
 @MainActor final class IconCapture {
     func capture(_ items: [MenuItem]) async -> CapturedIcons {
-        guard CGPreflightScreenCaptureAccess() else { return .init(images: [:], failure: "请允许屏幕录制，以读取真实菜单栏图标。") }
         do {
+          return try await ScreenCaptureAccess.shared.perform {
             let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
             var output: [String: NSImage] = [:]
             var geometry: [String] = []
@@ -47,9 +48,10 @@ struct CapturedIcons {
                 }
             }
             UserDefaults.standard.set(geometry, forKey: "lastCaptureGeometry")
-            return .init(images: output, failure: output.isEmpty && !items.isEmpty ? "系统没有返回可用图标快照，请刷新后重试。" : nil)
+            return CapturedIcons(images: output, failure: output.isEmpty && !items.isEmpty ? "系统没有返回可用图标快照，请刷新后重试。" : nil)
+          }
         } catch is CancellationError { return .init(images: [:], failure: nil) }
-        catch { return .init(images: [:], failure: "无法读取菜单栏快照：\(error.localizedDescription)") }
+        catch { return .init(images: [:], failure: "无法读取菜单栏快照：\(error.localizedDescription)", error: error) }
     }
     private static func hasPixels(_ image: CGImage) -> Bool {
         var pixels = [UInt8](repeating: 0, count: 16 * 16 * 4)

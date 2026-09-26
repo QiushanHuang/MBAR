@@ -2,21 +2,24 @@ import Foundation
 import CryptoKit
 
 public enum IconDisplayMode: String, Codable, CaseIterable, Sendable { case original, template }
-public enum IconOrigin: String, Codable, Sendable { case automatic, userSelected, custom }
+public enum IconOrigin: String, Codable, Sendable { case automatic, userSelected, custom, nativeSnapshot }
 public enum IconLocator: Codable, Equatable, Hashable, Sendable {
     case file(String)
     case asar(archive: String, entry: String)
     case imported(String)
+    case catalog(String)
     public var label: String {
         switch self {
         case .file(let path), .imported(let path): return path
         case .asar(let archive, let entry): return "\(archive) → \(entry)"
+        case .catalog(let name): return "Assets.car → \(name)"
         }
     }
     public var resourcePath: String {
         switch self {
         case .file(let path), .imported(let path): return path
         case .asar(let archive, _): return archive
+        case .catalog: return "Assets.car"
         }
     }
 }
@@ -38,12 +41,15 @@ public struct IconMapping: Codable, Equatable, Sendable {
     public var mode: IconDisplayMode
     public var origin: IconOrigin
     public var selectedAt: Date
-    public init(identity: IconAppIdentity, locator: IconLocator, digest: String, mode: IconDisplayMode, origin: IconOrigin, selectedAt: Date = Date()) {
+    public var sourceRevision: String?
+    public init(identity: IconAppIdentity, locator: IconLocator, digest: String, mode: IconDisplayMode, origin: IconOrigin, selectedAt: Date = Date(), sourceRevision: String? = nil) {
         self.identity = identity; self.locator = locator; self.digest = digest
         self.mode = mode; self.origin = origin; self.selectedAt = selectedAt
+        self.sourceRevision = sourceRevision
     }
     public func validation(current: IconAppIdentity, digest: String?) -> IconValidation {
         guard identity.key == current.key else { return .differentInstallation }
+        if origin == .nativeSnapshot && (identity.version != current.version || identity.shortVersion != current.shortVersion) { return .needsConfirmation }
         return digest == self.digest ? .valid : .needsConfirmation
     }
 }
@@ -53,8 +59,10 @@ public struct IconEvidence: Sendable {
     public let transparent: Bool
     public let menuSized: Bool
     public let family: String?
-    public init(path: String, digest: String, transparent: Bool, menuSized: Bool, family: String? = nil) {
+    public let declaredTemplate: Bool
+    public init(path: String, digest: String, transparent: Bool, menuSized: Bool, family: String? = nil, declaredTemplate: Bool = false) {
         self.path = path; self.digest = digest; self.transparent = transparent; self.menuSized = menuSized; self.family = family
+        self.declaredTemplate = declaredTemplate
     }
     public static func tokens(_ text: String) -> [String] {
         let camel = text.replacingOccurrences(of: "([a-z0-9])([A-Z])", with: "$1 $2", options: .regularExpression)
@@ -65,9 +73,10 @@ public struct IconEvidence: Sendable {
     private var nameTokens: [String] { Self.tokens(name) }
     public var strongName: Bool {
         let t = nameTokens
-        return t.contains("tray") || t.contains("menubar") || zip(t, t.dropFirst()).contains { ($0 == "status" && $1 == "item") || ($0 == "menu" && $1 == "bar") }
+        return t.contains("tray") || t.contains(where: { $0.hasPrefix("menubar") || $0.hasPrefix("statusbar") || $0.hasPrefix("statusicon") || $0.hasPrefix("trayicon") })
+            || zip(t, t.dropFirst()).contains { ($0 == "status" && ["item", "bar", "icon"].contains($1)) || ($0 == "menu" && $1 == "bar") }
     }
-    public var template: Bool { nameTokens.contains("template") }
+    public var template: Bool { declaredTemplate || nameTokens.contains("template") }
     public var excluded: Bool {
         let t = Self.tokens(path)
         return !Set(t).isDisjoint(with: ["appicon", "favicon", "installer", "dock", "toolbar"])
@@ -77,7 +86,7 @@ public struct IconEvidence: Sendable {
         let stem = name.replacingOccurrences(of: "@[123]x$", with: "", options: .regularExpression)
         let t = Self.tokens(stem)
         let context = Self.tokens((path as NSString).deletingLastPathComponent) + t
-        return !Set(context).isDisjoint(with: ["error", "disabled", "enabled", "connected", "disconnected", "offline", "online", "active", "inactive", "dark", "light", "black", "white", "pressed", "selected", "highlighted"])
+        return !Set(context).isDisjoint(with: ["error", "disabled", "enabled", "connected", "disconnected", "offline", "online", "active", "inactive", "dark", "light", "black", "white", "pressed", "selected", "highlighted", "click", "remind", "debug", "expired", "loading"])
             || t.contains { $0.contains(where: \.isNumber) }
     }
     public var score: Int {
@@ -100,7 +109,7 @@ public enum IconRanker {
         let winner = entries[first]
         guard winner.strongName, winner.menuSized, winner.score >= 80, !winner.ambiguousVariant else { return nil }
         // Duplicates cannot hide a competing state variant from the decision.
-        guard !ranked.contains(where: { entries[$0].ambiguousVariant }) else { return nil }
+        guard !ranked.contains(where: { entries[$0].ambiguousVariant && (entries[$0].strongName || winner.score - entries[$0].score < 25) }) else { return nil }
         let competitor = ranked.dropFirst().first {
             entries[$0].digest != winner.digest && (winner.family == nil || entries[$0].family != winner.family)
         }

@@ -12,6 +12,13 @@ final class IconAdaptationTests: XCTestCase {
         XCTAssertNil(IconRanker.automaticIndex([strong], complete: false, itemCount: 1))
         XCTAssertNil(IconRanker.automaticIndex([strong], complete: true, itemCount: 2))
     }
+    func testCompoundLowercaseMenuNamesAreDiscoveredWithoutMatchingUnrelatedWords() {
+        for name in ["statusicon.tiff", "menubarpinyin.pdf", "trayicon.png", "Status_Bar_Icon", "StatusBarIcon", "statusbar_ime_cn_icon"] {
+            XCTAssertTrue(evidence(name).strongName, name)
+            XCTAssertTrue(evidence(name).worthInspecting, name)
+        }
+        for name in ["portray.png", "statusquo.png", "toolbaricon.png"] { XCTAssertFalse(evidence(name).strongName, name) }
+    }
     func testAmbiguousStateAndThemeVariantsNeedSelection() {
         let paths = ["tray/trayTemplate.png", "tray/otherTrayTemplate.png"]
         XCTAssertNil(IconRanker.automaticIndex(paths.enumerated().map { evidence($0.element, hash: String($0.offset)) }, complete: true, itemCount: 1))

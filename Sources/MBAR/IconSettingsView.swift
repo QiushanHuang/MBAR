@@ -9,13 +9,16 @@ struct IconSettingsView: View {
     let dismiss: () -> Void
     @State private var selected: IconCandidate?
     @State private var imported: IconDecodedImage?
+    @State private var native: NativeIconPreview?
     @State private var mode: IconDisplayMode = .original
     @State private var working = false
     @State private var message: String?
     @State private var confirmsReset = false
+    @State private var needsCaptureAuthorization = false
     @State private var resetDetails = ""
     private var entry: IconEntry { library.entry(bundle) }
     private var preview: NSImage? {
+        if let native { return IconLibrary.image(native.prepared.image.png, mode: mode) }
         if let imported { return IconLibrary.image(imported.png, mode: mode) }
         if let selected { return IconLibrary.image(selected.image.png, mode: mode) }
         return entry.image
@@ -34,12 +37,12 @@ struct IconSettingsView: View {
                 sample(dark: false)
                 sample(dark: true)
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(imported != nil ? "自定义图片预览" : (selected != nil ? "候选预览" : "当前图标")).font(.subheadline)
+                    Text(native != nil ? "原生图标预览" : (imported != nil ? "自定义图片预览" : (selected != nil ? "候选预览" : "当前图标"))).font(.subheadline)
                     Text("静态图片；不代表应用实时状态。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
-            if selected != nil || imported != nil {
+            if selected != nil || imported != nil || native != nil {
                 Picker("显示方式", selection: $mode) {
                     Text("保留原色").tag(IconDisplayMode.original)
                     Text("随菜单栏着色").tag(IconDisplayMode.template)
@@ -48,13 +51,18 @@ struct IconSettingsView: View {
             HStack {
                 Text("可用候选").font(.headline)
                 Spacer()
+                Button("读取当前原生图标", action: captureNative)
+                    .disabled(working || !library.canCaptureNative(bundle))
+                    .help("仅读取已经可见的菜单图标，不展开系统栏。需要屏幕录制权限。")
                 if entry.scanning {
                     ProgressView().controlSize(.small)
                     Button("取消扫描") { library.stopScan(bundle) }
                 } else {
-                    Button("重新扫描") { selected = nil; imported = nil; library.scanCandidates(bundle, force: true) }
+                    Button("重新扫描") { selected = nil; imported = nil; native = nil; library.scanCandidates(bundle, force: true) }
                 }
             }
+            Text("原生取图会采集当前可见菜单图标的画面；预览并保存后，折叠时可继续显示这张静态快照。")
+                .font(.caption2).foregroundStyle(.secondary)
             ScrollView {
                 if entry.candidates.isEmpty {
                     Text(entry.scanning ? "正在应用资源中寻找菜单图标…" : (entry.state == .multiple ? "多个菜单项目暂不支持自动匹配。" : "没有找到可用候选，可以导入图片或继续常驻菜单栏。"))
@@ -63,7 +71,7 @@ struct IconSettingsView: View {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 144), spacing: 8)], spacing: 8) {
                         ForEach(entry.candidates) { candidate in
                             Button {
-                                selected = candidate; imported = nil; mode = candidate.suggestedMode; message = nil
+                                selected = candidate; imported = nil; native = nil; mode = candidate.suggestedMode; message = nil
                             } label: {
                                 VStack(spacing: 7) {
                                     if let image = IconLibrary.image(candidate.image.png, mode: candidate.suggestedMode) {
@@ -84,9 +92,26 @@ struct IconSettingsView: View {
                         }
                     }.padding(2)
                 }
-            }.frame(height: 218)
+            }.frame(height: needsCaptureAuthorization ? 125 : 218)
             if !entry.message.isEmpty { Text(entry.message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
-            if let error = message ?? library.storageError {
+            if needsCaptureAuthorization {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("允许 MBAR 读取菜单栏画面").font(.subheadline.bold())
+                    Text("在系统设置的“屏幕与系统音频录制”中开启 MBAR，然后重新读取。若开关已开但仍失败，请重启 MBAR。资源图标读取不需要此权限。")
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    HStack {
+                        Button("打开屏幕录制设置") { ScreenCaptureAccess.shared.openSettings() }
+                        Button("重新检查并读取", action: captureNative).disabled(working)
+                        if AppRelauncher.available {
+                            Button("重启 MBAR") {
+                                do { try AppRelauncher.restart(iconBundle: bundle) }
+                                catch { message = error.localizedDescription }
+                            }.disabled(working)
+                        }
+                    }
+                }.padding(12).background(Color.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+            }
+            if !needsCaptureAuthorization, let error = message ?? library.storageError {
                 Text(error).font(.caption).foregroundStyle(error == "已保存，可撤销上次修改。" ? Color.secondary : Color.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -95,7 +120,7 @@ struct IconSettingsView: View {
                     Text(selected?.locator.label ?? entry.source).textSelection(.enabled)
                     if let mapping = entry.mapping {
                         Text("选择时应用版本：\(mapping.identity.shortVersion) (\(mapping.identity.version))")
-                        Text("选择时间：\(mapping.selectedAt.formatted())")
+                        Text("\(mapping.origin == .nativeSnapshot ? "采集时间" : "选择时间")：\(mapping.selectedAt.formatted())")
                     }
                     Text("自动匹配依据资源名称与图像特征，尚未验证与原生图标完全一致。")
                 }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
@@ -117,9 +142,9 @@ struct IconSettingsView: View {
                 }
                 Spacer()
                 if working { ProgressView().controlSize(.small) }
-                Button(imported == nil ? "使用此图标" : "使用自定义图片", action: save)
+                Button(native != nil ? "使用原生快照" : (imported == nil ? "使用此图标" : "使用自定义图片"), action: save)
                     .buttonStyle(.borderedProminent).tint(.teal)
-                    .disabled(working || (selected == nil && imported == nil) || library.storageError != nil)
+                    .disabled(working || (selected == nil && imported == nil && native == nil) || library.storageError != nil)
             }
         }.padding(22).frame(width: 570)
             .onAppear { library.scanCandidates(bundle) }
@@ -149,8 +174,21 @@ struct IconSettingsView: View {
             working = true; message = nil
             Task { @MainActor in
                 defer { working = false }
-                do { imported = try await library.importImage(url); selected = nil; mode = .original }
+                do { imported = try await library.importImage(url); selected = nil; native = nil; mode = .original }
                 catch { message = error.localizedDescription }
+            }
+        }
+    }
+    private func captureNative() {
+        working = true; message = nil
+        Task { @MainActor in
+            defer { working = false }
+            do {
+                let result = try await library.nativePreview(bundle)
+                native = result; selected = nil; imported = nil; mode = result.prepared.mode; needsCaptureAuthorization = false
+            } catch {
+                needsCaptureAuthorization = ScreenCaptureAccess.isPermissionDenied(error)
+                message = needsCaptureAuthorization ? "macOS 尚未允许当前 MBAR 进程采集菜单栏画面。" : error.localizedDescription
             }
         }
     }
@@ -159,14 +197,15 @@ struct IconSettingsView: View {
         Task { @MainActor in
             defer { working = false }
             do {
-                if let imported { try library.saveImport(imported, mode: mode, bundle: bundle) }
+                if let native { try library.saveNative(native, mode: mode, bundle: bundle) }
+                else if let imported { try library.saveImport(imported, mode: mode, bundle: bundle) }
                 else if let selected { try await library.choose(selected, mode: mode, bundle: bundle) }
-                selected = nil; imported = nil; message = "已保存，可撤销上次修改。"
+                selected = nil; imported = nil; native = nil; message = "已保存，可撤销上次修改。"
             } catch { message = error.localizedDescription }
         }
     }
     private func perform(_ operation: () throws -> Void) {
-        do { try operation(); selected = nil; imported = nil; message = nil }
+        do { try operation(); selected = nil; imported = nil; native = nil; message = nil }
         catch { message = error.localizedDescription }
     }
 }

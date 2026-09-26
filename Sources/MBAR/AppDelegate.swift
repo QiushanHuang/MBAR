@@ -70,7 +70,13 @@ final class ShelfPanel: NSPanel {
         })
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.model.checkPermissions() } })
         showSettings()
-        model.refresh { [weak self] in self?.model.applyHiding() }
+        model.refresh { [weak self] in
+            guard let self else { return }
+            self.model.applyHiding()
+            if let bundle = AppRelaunchRequest(arguments: CommandLine.arguments)?.iconBundle {
+                self.model.configureIcon(bundle)
+            }
+        }
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if model.shelfRequested || shelf?.isVisible == true { return true }

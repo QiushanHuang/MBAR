@@ -103,6 +103,31 @@ final class MenuDiscovery: @unchecked Sendable {
             DispatchQueue.main.async { completion(result) }
         }
     }
+    /// Passive geometry only. Unlike captureFrames, this never invokes overflow or changes visibility.
+    func visibleFrames(_ items: [MenuItem]) async -> [MenuItem] {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                guard AXIsProcessTrusted() else { continuation.resume(returning: []); return }
+                var ids = [CGDirectDisplayID](repeating: 0, count: 16), count: UInt32 = 0
+                guard CGGetActiveDisplayList(16, &ids, &count) == .success else { continuation.resume(returning: []); return }
+                let displays = ids.prefix(Int(count)).sorted { $0 == CGMainDisplayID() && $1 != CGMainDisplayID() }.map { CGDisplayBounds($0) }
+                // Confirm the app still exposes exactly one item; PID alone cannot disambiguate multiple buttons.
+                let eligible = items.filter {
+                    let root = AXUIElementCreateApplication($0.pid); AXUIElementSetMessagingTimeout(root, 0.15)
+                    return Self.extras(root).count == 1
+                }
+                var results: [MenuItem] = []
+                for display in displays {
+                    let positions = Self.hostedFrames(eligible, display: display)
+                    for item in eligible where !results.contains(where: { $0.id == item.id }) {
+                        guard let frame = positions[item.id] else { continue }
+                        var copy = item; copy.frame = frame; results.append(copy)
+                    }
+                }
+                continuation.resume(returning: results)
+            }
+        }
+    }
     /// Reveals only the system overflow needed for already-allowed items.
     /// The app's visibility assertion decides which bundles may be shown.
     func captureFrames(_ items: [MenuItem], preferredDisplay: CGRect?) async -> CaptureLayout {
