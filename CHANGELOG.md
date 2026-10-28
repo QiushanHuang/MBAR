@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0 (development) - 2026-10-28
+
+### Changed
+
+- Reorganized Settings around the app list, clearer visibility choices, a resizable window and contextual help. Permission, error and recovery actions remain visible when needed.
+- Simplified icon selection and previews. Rescanning preserves an unsaved choice; closing, undoing or resetting warns before discarding it.
+- Added visible keyboard focus and Tab/Shift-Tab navigation across shelf items and controls. Hiding can still be switched off after its last selected app is changed to visible.
+- Reconcile menu-bar visibility after startup, wake, display changes and MenuBarAgent replacement; host identity and transition generations prevent stale native work from being treated as current.
+
+Debug and Release each passed 79 tests; one opt-in live capture test was skipped. This is a source and local-install update, not a published GitHub Release. See [0.6.0 notes](docs/releases/v0.6.0.md) for scope and limits.
+
 ## 0.5.0 - 2026-09-26
 
 ### Added
@@ -44,6 +55,15 @@ artwork, limited adapters and physical-display compatibility limits are document
 in the README. Local prototype versions before 0.4.0 were not GitHub releases.
 
 ## 中文
+
+### 0.6.0（开发版）— 2026-10-28
+
+- 设置页以应用列表为中心，显示方式更直接，窗口可调整大小，次要说明按需查看；保留必要的授权、错误和恢复入口。
+- 简化图标预览与选择。重新扫描保留未保存的选择；关闭、撤销或恢复自动匹配前会提示可能丢失的内容。
+- 下拉栏增加可见键盘焦点及 Tab / Shift-Tab 导航；最后一个隐藏应用改为常驻后仍可关闭隐藏。
+- 调整启动、唤醒、显示器变化和系统菜单栏进程更替时的恢复过程，以进程身份与状态代次隔离过期操作。
+
+Debug 和 Release 各有 79 项测试通过、1 项实机采集测试跳过。本次为源码和本机安装更新，尚未发布 GitHub Release；详见 [0.6.0 更新说明](docs/releases/v0.6.0.md#中文)。
 
 ### 0.5.0 - 2026-09-26
 

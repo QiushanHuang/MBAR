@@ -12,7 +12,11 @@ if let request = AppRelaunchRequest(arguments: CommandLine.arguments) {
 }
 
 #if DEBUG
-if CommandLine.arguments.contains("--icon-settings-preview") || Bundle.main.bundleIdentifier == "local.qiushan.MBAR.IconPreview" {
+if CommandLine.arguments.contains("--settings-preview") || (Bundle.main.bundleIdentifier?.hasPrefix("local.qiushan.MBAR.SettingsPreview") ?? false) {
+    MainActor.assumeIsolated { SettingsPreview.run() }
+    exit(0)
+}
+if CommandLine.arguments.contains("--icon-settings-preview") || (Bundle.main.bundleIdentifier?.hasPrefix("local.qiushan.MBAR.IconPreview") ?? false) {
     MainActor.assumeIsolated { IconSettingsPreview.run() }
     exit(0)
 }

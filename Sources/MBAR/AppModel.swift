@@ -21,10 +21,13 @@ import MBARCore
     @Published private(set) var shelfLock = ShelfLockPolicy(
         showsButton: UserDefaults.standard.object(forKey: "showShelfLockButton") as? Bool ?? true)
     let discovery = MenuDiscovery()
-    let hiding = HidingService()
-    let iconLibrary = IconLibrary()
+    let hiding: HidingService
+    let iconLibrary: IconLibrary
     @Published var iconSettingsBundle: String?
     private var applicationRefreshTask: Task<Void, Never>?
+    private var systemRefreshTask: Task<Void, Never>?
+    private var systemTransition = MenuBarSystemTransition()
+    private static let unsettledMenuBarMessage = "系统菜单栏尚未就绪，现有显示设置已保留。请稍后点“刷新”重试。"
     private var refreshGeneration = 0
     private var refreshWaiters: [() -> Void] = []
     private var interactionGeneration = 0
@@ -57,17 +60,19 @@ import MBARCore
         UserDefaults.standard.set(value, forKey: "showShelfLockButton")
         onShelfContentChanged?()
     }
-    init() {
+    init(hiding: HidingService? = nil, iconLibrary: IconLibrary? = nil) {
+        self.hiding = hiding ?? HidingService()
+        self.iconLibrary = iconLibrary ?? IconLibrary()
         let saved = (UserDefaults.standard.dictionary(forKey: "itemCategories") as? [String: String] ?? [:]).compactMapValues(ItemCategory.init(rawValue:))
         let legacy = Set(UserDefaults.standard.stringArray(forKey: "selectedBundles") ?? [])
         policy = ShelfPolicy(assignments: saved, legacySelected: legacy)
         UserDefaults.standard.set(policy.assignments.mapValues(\.rawValue), forKey: "itemCategories")
-        iconLibrary.onChange = { [weak self] in
+        self.iconLibrary.onChange = { [weak self] in
             guard let self else { return }
             self.objectWillChange.send()
             if self.shelfRequested || self.shelfVisible?() == true { self.publishIconPreviews() }
         }
-        hiding.onChange = { [weak self] phase, message in
+        self.hiding.onChange = { [weak self] phase, message in
             guard let self else { return }
             self.phase = phase
             if let message {
@@ -108,6 +113,7 @@ import MBARCore
         for callback in callbacks { callback() }
     }
     func refreshContents() {
+        if hiding.suspended { suspendForSystemChange() }
         refresh { [weak self] in
             guard let self, self.shelfVisible?() == true else { return }
             self.updatePreviews { [weak self] in self?.onShelfContentChanged?() }
@@ -115,6 +121,7 @@ import MBARCore
     }
     func refresh(after: (() -> Void)? = nil) {
         if let after { refreshWaiters.append(after) }
+        guard !systemTransition.sleeping else { finishRefreshWaiters(); return }
         checkPermissions()
         guard trusted else { finishRefreshWaiters(); return }
         guard !refreshing else { return }
@@ -148,13 +155,19 @@ import MBARCore
         guard trusted, !policy.hidden.isEmpty else { error = "请授权辅助功能，并为至少一个应用选择隐藏方式。"; return }
         hideRequested = true
         UserDefaults.standard.set(true, forKey: "hidingEnabled")
+        if hiding.suspended { suspendForSystemChange(); return }
         applyHiding()
     }
     func applyHiding(revealing: Set<String> = []) {
         guard hideRequested, AXIsProcessTrusted() else { hiding.restore(); return }
-        let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
+        let apps = NSWorkspace.shared.runningApplications.filter { !$0.isTerminated && $0.processIdentifier > 0 }
+        guard let host = apps.first(where: { $0.bundleIdentifier == "com.apple.MenuBarAgent" }) else {
+            suspendForSystemChange()
+            return
+        }
+        let running = Set(apps.compactMap(\.bundleIdentifier))
         let hidden = policy.hidden.intersection(running).subtracting(revealing)
-        hiding.hide(running: running, selected: hidden, own: ownBundle)
+        hiding.hide(running: running, selected: hidden, own: ownBundle, hostPID: Int(host.processIdentifier))
     }
     func restoreAll() {
         cancelSnapshots()
@@ -167,16 +180,48 @@ import MBARCore
         onRecovery?()
     }
     func shutdown() {
+        systemRefreshTask?.cancel(); systemTransition.begin(sleeping: true)
         cancelSnapshots(); applicationRefreshTask?.cancel(); iconLibrary.shutdown(); interactionGeneration += 1; stopMenuObserver()
         hiding.restore() // Preserve the user's enabled preference across normal restart.
     }
-    func suspendForSystemChange() {
-        if shelfRequested { return } // Finish the bounded capture, then reapply the current running-app policy.
+    func prepareForSystemSleep() { reconcileSystemChange(sleeping: true) }
+    func resumeFromSystemSleep() { reconcileSystemChange(sleeping: false) }
+    func suspendForSystemChange() { reconcileSystemChange() }
+    private func reconcileSystemChange(sleeping: Bool? = nil) {
+        let token = systemTransition.begin(sleeping: sleeping)
+        hiding.suspendForSystemChange()
+        systemRefreshTask?.cancel()
         cancelSnapshots(); interactionGeneration += 1; stopMenuObserver()
         previews.removeAll()
-        applyHiding()
-        // Keep always-hidden protection active while refreshing topology.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in self?.refresh { self?.applyHiding() } }
+        if systemTransition.sleeping {
+            applicationRefreshTask?.cancel()
+            // Sleeping AX servers can stall an in-flight scan. Invalidate its
+            // callback and watchdog so they cannot pause hiding eight seconds
+            // later, after a perfectly normal sleep/wake cycle.
+            refreshGeneration += 1
+            refreshing = false
+            finishRefreshWaiters()
+        }
+        guard systemTransition.canResume(token) else { return }
+        systemRefreshTask = Task { [weak self] in
+            // Wake commonly emits several display notifications. Reconcile
+            // once after the burst, never against the sleeping host.
+            do { try await Task.sleep(nanoseconds: 600_000_000) } catch { return }
+            guard let self, !Task.isCancelled, self.systemTransition.canResume(token), self.trusted else { return }
+            guard await self.discovery.waitForStableLayout(display: nil),
+                  !Task.isCancelled, self.systemTransition.canResume(token) else {
+                if !Task.isCancelled, self.systemTransition.canResume(token) {
+                    self.error = Self.unsettledMenuBarMessage
+                }
+                return
+            }
+            self.refresh { [weak self] in
+                guard let self, self.systemTransition.canResume(token) else { return }
+                if self.error == Self.unsettledMenuBarMessage { self.error = nil }
+                self.hiding.resumeAfterSystemChange()
+                self.applyHiding()
+            }
+        }
     }
     func refreshForApplicationChange() {
         // Invalidate departed processes immediately, before the coalesced AX scan.
@@ -190,6 +235,7 @@ import MBARCore
             }
         }
         applicationRefreshTask?.cancel()
+        guard !systemTransition.sleeping else { return }
         applicationRefreshTask = Task { [weak self] in
             // Coalesce launch bursts, then retry delayed status-item creation a bounded number of times.
             for delay in [100_000_000, 400_000_000, 1_000_000_000, 1_500_000_000] as [UInt64] {
@@ -256,6 +302,7 @@ import MBARCore
     func previewWidth(for item: MenuItem) -> CGFloat { ShelfMetrics.itemWidth(previews[item.id]?.size ?? item.frame?.size) }
     func openItem(_ item: MenuItem, right: Bool, fromSettings: Bool = false) {
         guard fromSettings || policy.category(item.bundle) == .automatic else { return }
+        guard !hiding.suspended else { error = "系统菜单栏正在恢复，请稍后再打开菜单。"; return }
         cancelSnapshots(); closeShelf?()
         error = nil
         interactionGeneration += 1; let generation = interactionGeneration

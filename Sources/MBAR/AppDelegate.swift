@@ -26,7 +26,7 @@ final class ShelfPanel: NSPanel {
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "MBAR")
             button.toolTip = "MBAR · 点击展开，右键设置"
-            button.setAccessibilityLabel("MBAR")
+            button.setAccessibilityLabel("MBAR 下拉栏")
             button.target = self; button.action = #selector(statusClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
@@ -51,24 +51,35 @@ final class ShelfPanel: NSPanel {
             self.closeShelf()
         }
         let workspace = NSWorkspace.shared.notificationCenter
-        for name in [NSWorkspace.willSleepNotification, NSWorkspace.didWakeNotification] {
-            observers.append(workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                // Refresh topology without dropping always-hidden protection.
-                MainActor.assumeIsolated { self?.closeShelf(reason: .recovery); self?.model.suspendForSystemChange() }
-            })
-        }
+        observers.append(workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.model.prepareForSystemSleep()
+                self?.closeShelf(reason: .recovery)
+            }
+        })
+        observers.append(workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.model.resumeFromSystemSleep()
+                self?.closeShelf(reason: .recovery)
+            }
+        })
         for name in [NSWorkspace.didTerminateApplicationNotification, NSWorkspace.didLaunchApplicationNotification] {
-            observers.append(workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+            observers.append(workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] notification in
                 MainActor.assumeIsolated {
+                    if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                       app.bundleIdentifier == "com.apple.MenuBarAgent" {
+                        self?.model.suspendForSystemChange()
+                    }
                     self?.closeShelf(reason: .applicationsChanged)
                     self?.model.refreshForApplicationChange()
                 }
             })
         }
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.closeShelf(reason: .recovery); self?.model.suspendForSystemChange() }
+            MainActor.assumeIsolated { self?.model.suspendForSystemChange(); self?.closeShelf(reason: .recovery) }
         })
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.model.checkPermissions() } })
+        model.suspendForSystemChange() // Login/startup can race MenuBarAgent's initial display surfaces too.
         showSettings()
         model.refresh { [weak self] in
             guard let self else { return }
@@ -114,9 +125,10 @@ final class ShelfPanel: NSPanel {
         // Opening Settings does not expose always-hidden items. Show All is explicit.
         if shelf?.isVisible != true { model.endShelfSession() }
         if settings == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 720), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             window.title = "MBAR 设置"
             window.isReleasedWhenClosed = false
+            window.contentMinSize = NSSize(width: 580, height: 540)
             window.contentView = NSHostingView(rootView: SettingsView(model: model))
             window.center(); settings = window
         }
@@ -175,9 +187,8 @@ final class ShelfPanel: NSPanel {
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         panel.alphaValue = reduceMotion ? 1 : 0
         panel.makeKeyAndOrderFront(nil)
-        // Opening the shelf is not selecting its first item. Tab navigation
-        // remains available, with focus rings disabled on the icon controls.
-        panel.makeFirstResponder(nil)
+        // Focus the host without selecting an item; the first Tab enters the shelf.
+        panel.makeFirstResponder(host)
         if !reduceMotion {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.12

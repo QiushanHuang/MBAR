@@ -49,6 +49,7 @@ import MBARCore
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 614, height: 650), styleMask: [.titled, .closable], backing: .buffered, defer: false)
             window.title = "MBAR 图标适配 · 开发预览"
             window.isReleasedWhenClosed = false
+            if Bundle.main.bundleIdentifier?.hasSuffix(".Dark") == true { window.appearance = NSAppearance(named: .darkAqua) }
             window.contentView = NSHostingView(rootView: IconSettingsView(library: library, bundle: displayBundle, name: displayName, dismiss: { app.terminate(nil) }))
             window.center(); window.makeKeyAndOrderFront(nil)
             app.activate(ignoringOtherApps: true)

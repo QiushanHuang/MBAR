@@ -25,6 +25,8 @@ Open the shelf, then click a tool to reach its original menu.
 [Install](#install) · [Choose an icon](#choose-an-icon) ·
 [What's new](docs/releases/v0.5.0.md) · [Report an issue](https://github.com/QiushanHuang/MBAR/issues)
 
+The current source builds 0.6.0; its [development update notes](docs/releases/v0.6.0.md) describe the new interface and menu-bar recovery changes. The latest public download remains 0.5.0.
+
 ## What MBAR does
 
 - Keeps frequently used tools in one row near the point where you click. Wide collections scroll horizontally.
@@ -62,6 +64,8 @@ shasum -a 256 MBAR-0.5.0-macos-arm64.dmg
 
 ## Start here
 
+These instructions describe the current development version. The v0.5.0 download uses the earlier labels **自动隐藏** and **总是隐藏**, and shows icon reset and undo directly in the icon panel.
+
 1. Launch the apps you want to organize, then click **刷新** in MBAR.
 2. Leave new apps visible while checking **图标…** and preparing any native snapshot.
 3. Choose a category:
@@ -69,8 +73,8 @@ shasum -a 256 MBAR-0.5.0-macos-arm64.dmg
 | UI label | Behavior |
 | --- | --- |
 | 常驻菜单栏 | Stays visible in the system menu bar |
-| 自动隐藏 | Appears in MBAR's dropdown when you open it |
-| 总是隐藏 | Stays out of the dropdown; use its Settings arrow to open it temporarily |
+| 收入下拉栏 | Appears in MBAR's dropdown when you open it |
+| 始终隐藏 | Stays out of the dropdown; use its Settings arrow to open it temporarily |
 
 4. Click **打开下拉栏** to check the row, then enable **启用隐藏**.
 
@@ -81,7 +85,7 @@ Categories and the enabled preference survive normal restarts; the shelf's locke
 
 ## Choose an icon
 
-Open **Settings → 图标…** beside an app. MBAR uses these sources:
+Open **图标…** or **选择图标…** beside an app in Settings. MBAR uses these sources:
 
 | Source | How it works | Screen Recording |
 | --- | --- | --- |
@@ -92,7 +96,7 @@ Open **Settings → 图标…** beside an app. MBAR uses these sources:
 
 An explicit saved choice takes priority over automatic matching. Compare the light/dark previews,
 choose original colors or template coloring, then click **使用此图标**.
-**恢复自动匹配…** removes your override; **撤销上次修改** restores the previous saved choice.
+Under **更多操作**, **恢复自动匹配…** removes your override; **撤销上次修改** restores the previous saved choice.
 
 Incomplete scans and ambiguous candidates never trigger automatic adoption. If a saved resource
 changes after an app update, MBAR asks you to choose again. A missing shelf icon opens its icon settings.
@@ -102,7 +106,7 @@ changes after an app update, MBAR asks you to choose again. A missing shelf icon
 1. Keep the target icon visible in the system menu bar.
 2. Open its **图标…** panel and click **读取当前原生图标**.
 3. Allow MBAR in **Screen & System Audio Recording** if requested. Resource loading needs no such permission.
-4. Check the preview and click **使用原生快照**. You can then move the app into Auto-hide.
+4. Check the preview and click **使用原生快照**. You can then choose **收入下拉栏** for the app.
 
 This is a single-frame capture of the menu bar's rendered content. MBAR does not reveal hidden
 icons to get a picture. It checks positions before and after capture and rejects empty, faded,
@@ -242,6 +246,8 @@ MBAR 将 macOS 27 的菜单栏图标收进入口下方的紧凑下拉栏。
 [安装](#安装) · [选择图标](#选择图标) · [更新说明](docs/releases/v0.5.0.md#中文) ·
 [反馈问题](https://github.com/QiushanHuang/MBAR/issues)
 
+当前源码构建为 0.6.0；[开发版更新说明](docs/releases/v0.6.0.md#中文)介绍界面和菜单栏恢复改进。公开下载的最新版本仍为 0.5.0。
+
 ### 主要功能
 
 - 常用工具集中在入口下方；图标较多时横向滚动。
@@ -276,6 +282,8 @@ shasum -a 256 MBAR-0.5.0-macos-arm64.dmg
 
 ### 快速开始
 
+以下步骤对应当前开发版本。v0.5.0 下载版使用旧名称 **自动隐藏** 和 **总是隐藏**，图标恢复与撤销按钮直接显示在图标面板中。
+
 1. 启动需要收纳的应用，在 MBAR 中点击 **刷新**。
 2. 新应用先保持常驻，在 **图标…** 中检查来源，必要时先采集原生图标。
 3. 为应用选择分类：
@@ -283,8 +291,8 @@ shasum -a 256 MBAR-0.5.0-macos-arm64.dmg
 | 分类 | 行为 |
 | --- | --- |
 | 常驻菜单栏 | 保留在系统顶栏 |
-| 自动隐藏 | 点击 MBAR 后在下拉栏显示 |
-| 总是隐藏 | 不进入下拉栏，仅从设置临时打开 |
+| 收入下拉栏 | 点击 MBAR 后在下拉栏显示 |
+| 始终隐藏 | 不进入下拉栏，仅从设置临时打开 |
 
 4. 点击 **打开下拉栏** 检查效果，然后开启 **启用隐藏**。
 
@@ -294,7 +302,7 @@ shasum -a 256 MBAR-0.5.0-macos-arm64.dmg
 
 ### 选择图标
 
-在设置中点击应用旁的 **图标…**。可用来源如下：
+在设置中点击应用旁的 **图标…** 或 **选择图标…**。可用来源如下：
 
 | 来源 | 工作方式 | 录屏权限 |
 | --- | --- | --- |
@@ -304,7 +312,7 @@ shasum -a 256 MBAR-0.5.0-macos-arm64.dmg
 | 原生快照 | 采集当前可见菜单图标的实际画面 | 需要 |
 
 手动保存的选择优先于自动匹配。比较明暗背景预览，选择保留原色或随菜单栏着色，再点 **使用此图标**。
-**恢复自动匹配…** 可撤销手动覆盖，**撤销上次修改** 可恢复上一次保存的选择。
+在 **更多操作** 中，**恢复自动匹配…** 可移除手动选择，**撤销上次修改** 可恢复上一次保存的选择。
 
 扫描不完整或候选有歧义时不会自动采用。应用更新后，若保存的图标来源发生变化，会要求重新选择。
 下拉栏中的缺失图标入口会打开对应应用的图标设置。
@@ -314,7 +322,7 @@ shasum -a 256 MBAR-0.5.0-macos-arm64.dmg
 1. 让目标图标在系统菜单栏中保持可见。
 2. 打开该应用的 **图标…**，点击 **读取当前原生图标**。
 3. 如系统提示，在**屏幕与系统音频录制**中允许 MBAR。普通资源读取不需要这项权限。
-4. 检查预览，点击 **使用原生快照**，之后可将应用设为自动隐藏。
+4. 检查预览，点击 **使用原生快照**，之后可将应用设为 **收入下拉栏**。
 
 这是对系统菜单栏画面的单帧采集。MBAR 不会为了取图展开隐藏项目，采集前后会核对位置，
 并拒绝空白、明显淡化、裁切不完整或身份不明确的结果。确认后只保存目标图标及采集时间。
@@ -348,7 +356,7 @@ Codex、ScreenPilot、Docker Desktop、绿联 NAS、Macs Fan Control 和 Clash V
 | 打开设置 | 下拉栏齿轮，或右键 MBAR → 设置… |
 | 保持下拉栏打开 | 点击锁定按钮，再次点击解锁 |
 | 收起未锁定的下拉栏 | 点击外部、按 Escape 或再次点击 MBAR |
-| 临时打开总是隐藏的项目 | 设置列表中对应行的箭头按钮 |
+| 临时打开始终隐藏的项目 | 设置列表中对应行的箭头按钮 |
 | 恢复全部并暂停隐藏 | 设置中的 显示全部（暂停），或 MBAR 右键菜单的 显示全部图标 |
 | 退出 | 退出 MBAR |
 

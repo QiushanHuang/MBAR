@@ -212,13 +212,16 @@ final class MenuDiscovery: @unchecked Sendable {
         while !Task.isCancelled, ProcessInfo.processInfo.systemUptime < deadline {
             let signature: [String] = await withCheckedContinuation { continuation in
                 queue.async {
-                    let windows = Self.hostWindows()
+                    guard let host = NSWorkspace.shared.runningApplications.first(where: {
+                        $0.bundleIdentifier == "com.apple.MenuBarAgent" && !$0.isTerminated && $0.processIdentifier > 0
+                    }) else { continuation.resume(returning: []); return }
+                    let windows = Self.hostWindows(process: host)
                     let signature = windows.flatMap { window in
                         Self.children(window).compactMap { group -> String? in
                             guard let rect = Self.frame(group), rect.width > 0, rect.height > 0,
                                   display.map({ $0.contains(rect) }) ?? true else { return nil }
                             // Geometry only; live titles must not prevent a static capture.
-                            return "\(rect.minX.rounded()),\(rect.minY.rounded()),\(rect.width.rounded()),\(rect.height.rounded())"
+                            return "\(host.processIdentifier):\(rect.minX.rounded()),\(rect.minY.rounded()),\(rect.width.rounded()),\(rect.height.rounded())"
                         }
                     }.sorted()
                     continuation.resume(returning: signature)
@@ -250,8 +253,8 @@ final class MenuDiscovery: @unchecked Sendable {
             DispatchQueue.main.async { completion(result == .success, result == .success ? nil : "系统未能打开这个菜单（AX \(result.rawValue)）；图标已临时显示，可从顶栏操作。") }
         }
     }
-    private static func hostWindows() -> [AXUIElement] {
-        guard let agent = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == "com.apple.MenuBarAgent" }) else { return [] }
+    private static func hostWindows(process: NSRunningApplication? = nil) -> [AXUIElement] {
+        guard let agent = process ?? NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == "com.apple.MenuBarAgent" }) else { return [] }
         let root = AXUIElementCreateApplication(agent.processIdentifier)
         AXUIElementSetMessagingTimeout(root, 0.2)
         return children(root).filter { role($0) == kAXWindowRole }
