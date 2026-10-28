@@ -17,7 +17,7 @@ cp README.md CONTRIBUTORS.md CONTRIBUTING.md CHANGELOG.md "$release_dir/staging/
 mkdir -p "$release_dir/staging/docs/images" "$release_dir/staging/docs/releases"
 cp docs/images/mbar-icon.png docs/images/README.md "$release_dir/staging/docs/images/"
 cp docs/releases/v*.md "$release_dir/staging/docs/releases/"
-cp docs/icon-extraction.md "$release_dir/staging/docs/"
+cp docs/icon-extraction.md docs/menu-bar-lifecycle.md "$release_dir/staging/docs/"
 cp LICENSE THIRD_PARTY_NOTICES.md "$release_dir/staging/"
 ln -s /Applications "$release_dir/staging/Applications"
 ditto -c -k --sequesterRsrc --keepParent "$release_dir/staging/MBAR.app" "$release_dir/$base.zip"

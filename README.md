@@ -21,11 +21,9 @@ MBAR gathers menu-bar icons into a compact dropdown below its entry on macOS 27.
 Choose which apps stay visible, which go into the shelf, and which remain hidden.
 Open the shelf, then click a tool to reach its original menu.
 
-[**Download v0.5.0**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.5.0) ·
+[**Download v0.6.0**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.6.0) ·
 [Install](#install) · [Choose an icon](#choose-an-icon) ·
-[What's new](docs/releases/v0.5.0.md) · [Report an issue](https://github.com/QiushanHuang/MBAR/issues)
-
-The current source builds 0.6.0; its [development update notes](docs/releases/v0.6.0.md) describe the new interface and menu-bar recovery changes. The latest public download remains 0.5.0.
+[What's new](docs/releases/v0.6.0.md) · [Report an issue](https://github.com/QiushanHuang/MBAR/issues)
 
 ## What MBAR does
 
@@ -34,7 +32,7 @@ The current source builds 0.6.0; its [development update notes](docs/releases/v0
 - Lets you compare uncertain candidates, import your own image, or capture a currently visible native icon.
 - Keeps the shelf open with an optional lock, forwards left/right clicks, and provides a Show all recovery action.
 
-**v0.5.0 adds broader icon discovery, per-app icon selection, optional native snapshots and a fix for screen-capture permission checks.**
+**v0.6.0 simplifies Settings and icon selection, improves keyboard access, and strengthens menu-bar recovery after system transitions.**
 The UI is currently in Simplified Chinese; English instructions below use the actual button labels.
 
 Hiding uses a private macOS 27 interface and remains experimental. Artwork is static.
@@ -47,11 +45,11 @@ A saved battery percentage, speed value or graph does not continue updating.
 Requires **macOS 27 and an Apple Silicon Mac**. Downloads are ad-hoc signed,
 without Developer ID signing or Apple notarization. There is no Intel build.
 
-1. Download `MBAR-0.5.0-macos-arm64.dmg` from [Releases](https://github.com/QiushanHuang/MBAR/releases/tag/v0.5.0).
+1. Download `MBAR-0.6.0-macos-arm64.dmg` from [Releases](https://github.com/QiushanHuang/MBAR/releases/tag/v0.6.0).
 2. Open the DMG and drag **MBAR** to **Applications**, then eject it. The ZIP is an alternative: extract it and move `MBAR.app` to Applications.
 3. Launch `/Applications/MBAR.app`. MBAR runs in the menu bar, without a Dock icon.
 4. If macOS blocks opening, review the download and use **System Settings → Privacy & Security → Open Anyway**. Keep Gatekeeper enabled.
-5. Click **打开辅助功能设置**, enable MBAR, return and click **刷新**. On macOS 27 the system pane may be called **Device Control and Data Access**.
+5. Click **打开辅助功能设置**, enable MBAR, return and click **刷新**. On macOS 27 the system pane may be called **Device Control and Data Access**. If an old MBAR entry is on but the updated app still lacks access, remove that entry, add `/Applications/MBAR.app` again and restart MBAR.
 
 Keep target apps enabled in **System Settings → Menu Bar → Allow in Menu Bar**.
 Turning them off there removes their menu items instead of collecting them in MBAR.
@@ -59,12 +57,10 @@ Turning them off there removes their menu items instead of collecting them in MB
 To verify a downloaded archive, put it beside the release's `SHA256SUMS.txt` and compare its digest:
 
 ```sh
-shasum -a 256 MBAR-0.5.0-macos-arm64.dmg
+shasum -a 256 MBAR-0.6.0-macos-arm64.dmg
 ```
 
 ## Start here
-
-These instructions describe the current development version. The v0.5.0 download uses the earlier labels **自动隐藏** and **总是隐藏**, and shows icon reset and undo directly in the icon panel.
 
 1. Launch the apps you want to organize, then click **刷新** in MBAR.
 2. Leave new apps visible while checking **图标…** and preparing any native snapshot.
@@ -199,7 +195,7 @@ Use macOS 27 with Xcode's Swift 6 toolchain. Release validation uses Swift 6.4 a
 ```sh
 git clone https://github.com/QiushanHuang/MBAR.git
 cd MBAR
-git checkout v0.5.0
+git checkout v0.6.0
 swift test
 swift test -c release
 ./scripts/build-app.sh
@@ -217,7 +213,7 @@ Terminal permission results do not prove that the GUI app is authorized. Unit te
 parsing and lifecycle behavior; installed-app capture and physical-display checks are separate.
 
 [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) ·
-[Release notes and validation](docs/releases/v0.5.0.md)
+[Release notes and validation](docs/releases/v0.6.0.md)
 
 Created and maintained by **[Qiushan (QiushanHuang)](https://github.com/QiushanHuang)**.
 [Contributors](CONTRIBUTORS.md) · [GPL-3.0](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
@@ -242,11 +238,9 @@ Created and maintained by **[Qiushan (QiushanHuang)](https://github.com/QiushanH
 MBAR 将 macOS 27 的菜单栏图标收进入口下方的紧凑下拉栏。
 你可以决定哪些应用常驻、哪些收入下拉栏、哪些一直隐藏，再从同一排图标打开它们的原菜单。
 
-[**下载 v0.5.0**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.5.0) ·
-[安装](#安装) · [选择图标](#选择图标) · [更新说明](docs/releases/v0.5.0.md#中文) ·
+[**下载 v0.6.0**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.6.0) ·
+[安装](#安装) · [选择图标](#选择图标) · [更新说明](docs/releases/v0.6.0.md#中文) ·
 [反馈问题](https://github.com/QiushanHuang/MBAR/issues)
-
-当前源码构建为 0.6.0；[开发版更新说明](docs/releases/v0.6.0.md#中文)介绍界面和菜单栏恢复改进。公开下载的最新版本仍为 0.5.0。
 
 ### 主要功能
 
@@ -255,7 +249,7 @@ MBAR 将 macOS 27 的菜单栏图标收进入口下方的紧凑下拉栏。
 - 候选不明确时手动选择，也支持导入图片、读取当前可见的原生图标。
 - 可锁定下拉栏，转发左右键操作，并随时显示全部图标、暂停隐藏。
 
-**v0.5.0 扩展了图标识别，加入每应用图标选择和可选原生快照，并修复了录屏权限预检阻断取图的问题。**
+**v0.6.0 简化了设置与图标选择，改进键盘操作和系统变化后的菜单栏恢复。**
 界面目前为简体中文。隐藏依赖 macOS 27 私有接口，仍属实验功能。
 图标和快照都是静态内容，保存的电量、网速或波形不会持续刷新。
 
@@ -266,23 +260,21 @@ MBAR 将 macOS 27 的菜单栏图标收进入口下方的紧凑下拉栏。
 需要 **macOS 27 和 Apple Silicon Mac**。下载包采用 ad-hoc 签名，
 未经 Developer ID 签名或 Apple 公证，未提供 Intel 版本。
 
-1. 在[发行页](https://github.com/QiushanHuang/MBAR/releases/tag/v0.5.0)下载 `MBAR-0.5.0-macos-arm64.dmg`。
+1. 在[发行页](https://github.com/QiushanHuang/MBAR/releases/tag/v0.6.0)下载 `MBAR-0.6.0-macos-arm64.dmg`。
 2. 打开 DMG，将 **MBAR** 拖到 **Applications（应用程序）**，然后推出映像。也可解压 ZIP 后移动 `MBAR.app`。
 3. 从 `/Applications/MBAR.app` 启动。MBAR 只驻留菜单栏，不显示 Dock 图标。
 4. 若 macOS 阻止打开，确认下载来源后，在**系统设置 → 隐私与安全性 → 仍要打开**中放行，保持 Gatekeeper 开启。
-5. 点击 **打开辅助功能设置**，启用 MBAR，返回后点击 **刷新**。macOS 27 英文系统可能将该权限称为 **Device Control and Data Access**。
+5. 点击 **打开辅助功能设置**，启用 MBAR，返回后点击 **刷新**。macOS 27 英文系统可能将该权限称为 **Device Control and Data Access**。如果旧 MBAR 条目已开启但新版仍无权限，移除该条目，重新添加 `/Applications/MBAR.app` 并重启 MBAR。
 
 请在系统的**菜单栏 → 允许在菜单栏中**保持目标应用开启；在那里关闭会移除菜单项目，而不是由 MBAR 收纳。
 
 发行页提供 `SHA256SUMS.txt`，可将以下结果与其中对应行核对：
 
 ```sh
-shasum -a 256 MBAR-0.5.0-macos-arm64.dmg
+shasum -a 256 MBAR-0.6.0-macos-arm64.dmg
 ```
 
 ### 快速开始
-
-以下步骤对应当前开发版本。v0.5.0 下载版使用旧名称 **自动隐藏** 和 **总是隐藏**，图标恢复与撤销按钮直接显示在图标面板中。
 
 1. 启动需要收纳的应用，在 MBAR 中点击 **刷新**。
 2. 新应用先保持常驻，在 **图标…** 中检查来源，必要时先采集原生图标。
@@ -406,7 +398,7 @@ Codex、ScreenPilot、Docker Desktop、绿联 NAS、Macs Fan Control 和 Clash V
 ```sh
 git clone https://github.com/QiushanHuang/MBAR.git
 cd MBAR
-git checkout v0.5.0
+git checkout v0.6.0
 swift test
 swift test -c release
 ./scripts/build-app.sh
@@ -420,7 +412,7 @@ swift test -c release
 诊断加上 `--items` 会输出应用标识和坐标，分享前请检查内容。终端权限不代表 GUI 应用已授权。
 单元测试覆盖策略、解析与生命周期；安装版采集和多屏实机验收分别记录。
 
-[贡献指南](CONTRIBUTING.md) · [更新记录](CHANGELOG.md) · [版本说明与验证](docs/releases/v0.5.0.md#中文)
+[贡献指南](CONTRIBUTING.md) · [更新记录](CHANGELOG.md) · [版本说明与验证](docs/releases/v0.6.0.md#中文)
 
 作者与维护者：**[Qiushan（QiushanHuang）](https://github.com/QiushanHuang)**。
 [贡献署名](CONTRIBUTORS.md) · [GPL-3.0 许可](LICENSE) · [第三方声明](THIRD_PARTY_NOTICES.md)
