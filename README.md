@@ -4,7 +4,7 @@
   <img src="docs/images/mbar-icon.png" alt="MBAR menu-bar shelf" width="144">
 </p>
 <h1 align="center">MBAR</h1>
-<p align="center"><strong>Your menu-bar tools, together in one row.</strong></p>
+<p align="center"><strong>Your menu-bar tools in one place.</strong></p>
 <p align="center">
   <a href="#english"><img src="https://img.shields.io/badge/Language-English-24292f" alt="English"></a>
   <a href="#中文"><img src="https://img.shields.io/badge/语言-简体中文-1677ff" alt="简体中文"></a>
@@ -17,7 +17,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-blue" alt="GPL-3.0"></a>
 </p>
 
-MBAR gathers menu-bar icons into a compact dropdown below its entry on macOS 27.
+MBAR gathers menu-bar icons into a configurable dropdown on macOS 27.
 Choose which apps stay visible, which go into the shelf, and which remain hidden.
 Open the shelf, then click a tool to reach its original menu.
 
@@ -27,7 +27,8 @@ Open the shelf, then click a tool to reach its original menu.
 
 ## What MBAR does
 
-- Keeps frequently used tools in one row near the point where you click. Wide collections scroll horizontally.
+- The development build offers a compact strip, a labeled grid and a list. Under the MBAR entry, extend it left, center it on the entry, or extend it right. Screen-edge docking is also available.
+- Choose a translucent or frosted surface, soft glass, or Apple’s clear Liquid Glass in **外观…**. Choose **桌面水晶** for untinted clear glass; presets are also accessible directly from the MBAR entry’s context menu. Adjust tint, color intensity and the opacity of a translucent background, then save a named preset. Seven built-in palettes are included.
 - Reads original menu-icon resources from supported apps. Automatic discovery also searches ordinary images, compiled `Assets.car` catalogs and Electron ASAR archives.
 - Lets you compare uncertain candidates, import your own image, or capture a currently visible native icon.
 - Keeps the shelf open with an optional lock, forwards left/right clicks, and provides a Show all recovery action.
@@ -35,8 +36,10 @@ Open the shelf, then click a tool to reach its original menu.
 **v0.6.0 simplifies Settings and icon selection, improves keyboard access, and strengthens menu-bar recovery after system transitions.**
 The UI is currently in Simplified Chinese; English instructions below use the actual button labels.
 
-Hiding uses a private macOS 27 interface and remains experimental. Artwork is static.
-A saved battery percentage, speed value or graph does not continue updating.
+Hiding uses a private macOS 27 interface and remains experimental. Saved artwork is static.
+In the development build, **刷新可见的原生图标** enables periodic updates while the shelf is open.
+Visible items can show their current native glyph. Hidden items use saved artwork, or current
+speed text when a supported Clash Verge Rev installation exposes it. Manual artwork takes priority.
 
 <a id="install"></a>
 
@@ -72,10 +75,11 @@ shasum -a 256 MBAR-0.6.0-macos-arm64.dmg
 | 收入下拉栏 | Appears in MBAR's dropdown when you open it |
 | 始终隐藏 | Stays out of the dropdown; use its Settings arrow to open it temporarily |
 
-4. Click **打开下拉栏** to check the row, then enable **启用隐藏**.
+4. Click **打开下拉栏** to check the shelf, then enable **启用隐藏**.
 
 A fresh installation starts with hiding off. New apps default to Visible.
-Categories and the enabled preference survive normal restarts; the shelf's locked state does not.
+Categories, appearance and placement survive normal restarts. The lock applies to the current session.
+When opening from Settings with the menu entry in overflow, the shelf uses the trailing edge of the Settings display for **入口下方**.
 
 <a id="choose-an-icon"></a>
 
@@ -119,8 +123,7 @@ An app version change invalidates the old native snapshot.
 
 Existing verified adapters cover KeepingYouAwake, MonitorControl, Tailscale, BuhoNTFS Menu,
 UU Remote, Codex, ScreenPilot, Docker Desktop, UGREEN NAS, Macs Fan Control and Clash Verge Rev.
-Upstream resource changes can still require adapter updates. Clash's exposed speed text is read
-once on opening, when available.
+Upstream resource changes can still require adapter updates. Clash’s exposed speed text is read on opening and can update while live refresh is enabled.
 
 Automatic discovery extends beyond that list. In a local comparison of the same 20 running apps,
 apps with at least one candidate increased from **4 to 15**. This measures candidate coverage,
@@ -138,6 +141,8 @@ See [extraction methods, evidence and limits](docs/icon-extraction.md) for the t
 | Open the original menu | Left-click an available shelf icon |
 | Forward a right-click | Right-click the icon; behavior depends on the target app |
 | Open Settings | Shelf gear, or right-click MBAR → 设置… |
+| Change layout or position (development build) | Right-click the MBAR entry or use the segmented controls in Settings |
+| Navigate without a mouse | Tab to enter, use arrow keys to move, then Return or Space to select |
 | Keep the shelf open | Click the lock; click again to unlock |
 | Close an unlocked shelf | Click outside, press Escape, or click MBAR again |
 | Temporarily open an Always-hide item | Arrow button beside the app in Settings |
@@ -151,7 +156,7 @@ item, and the original menu may open at the system bar rather than below the she
 ## Permissions and local data
 
 Accessibility is required to discover menu items and forward interaction. Screen Recording is
-optional and used only for an explicit native capture request. MBAR records no audio.
+optional. MBAR uses it for requested snapshots or when you enable native icon refresh. Live frames stay in memory and sampling ends when the shelf closes. MBAR records no audio.
 
 Resource loading reads installed app files without executing their binaries. Third-party artwork
 is not included in MBAR's downloads. There is no account, telemetry or network backend.
@@ -235,8 +240,8 @@ Created and maintained by **[Qiushan (QiushanHuang)](https://github.com/QiushanH
   <a href="#中文"><img src="https://img.shields.io/badge/语言-简体中文-1677ff" alt="简体中文"></a>
 </p>
 
-MBAR 将 macOS 27 的菜单栏图标收进入口下方的紧凑下拉栏。
-你可以决定哪些应用常驻、哪些收入下拉栏、哪些一直隐藏，再从同一排图标打开它们的原菜单。
+MBAR 将 macOS 27 的菜单栏图标收进可调整位置和样式的下拉栏。
+你可以决定哪些应用常驻、哪些收入下拉栏、哪些一直隐藏，再从下拉栏打开它们的原菜单。
 
 [**下载 v0.6.0**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.6.0) ·
 [安装](#安装) · [选择图标](#选择图标) · [更新说明](docs/releases/v0.6.0.md#中文) ·
@@ -244,14 +249,16 @@ MBAR 将 macOS 27 的菜单栏图标收进入口下方的紧凑下拉栏。
 
 ### 主要功能
 
-- 常用工具集中在入口下方；图标较多时横向滚动。
+- 开发版提供图标条、网格和列表。在「入口下方」可选向左、居中或向右展开，也可贴当前显示器的左侧或右侧。
+- 在设置的「下拉栏 → 外观…」可选择半透明、毛玻璃、柔光玻璃或苹果液态玻璃。选「桌面水晶」即可使用原生清透玻璃，也可直接从入口的右键菜单「下拉栏外观预设」切换。「桌面水晶」使用 AppKit 的清透液态玻璃，圆角边缘保留原生效果，中央透出更多壁纸细节。原有玻璃效果保存在「柔光原色」和「海盐蓝」中。七款内置预设均可调整材质、颜色和着色强度，半透明材质还可以调节背景不透明度。调整后可另存为个人预设。系统开启「降低透明度」时，面板会使用实色背景。
 - 读取已适配应用的原始菜单图标，也会自动搜索普通图片、`Assets.car` 图像资源库和 Electron ASAR 归档。
 - 候选不明确时手动选择，也支持导入图片、读取当前可见的原生图标。
 - 可锁定下拉栏，转发左右键操作，并随时显示全部图标、暂停隐藏。
 
 **v0.6.0 简化了设置与图标选择，改进键盘操作和系统变化后的菜单栏恢复。**
 界面目前为简体中文。隐藏依赖 macOS 27 私有接口，仍属实验功能。
-图标和快照都是静态内容，保存的电量、网速或波形不会持续刷新。
+保存的图标和快照是静态的。开发版可在设置中开启「刷新可见的原生图标」。
+下拉栏打开时定期采样当前显示器上的可见项目。隐藏项目使用配置图标，Clash Verge Rev 提供网速文字时可更新数值。手选和导入的图标优先。
 
 <a id="安装"></a>
 
@@ -288,7 +295,7 @@ shasum -a 256 MBAR-0.6.0-macos-arm64.dmg
 
 4. 点击 **打开下拉栏** 检查效果，然后开启 **启用隐藏**。
 
-全新安装默认不隐藏，新发现的应用默认常驻。分类与隐藏开关会在正常重启后保留；下拉栏的锁定状态不跨重启保存。
+全新安装默认不隐藏，新发现的应用默认常驻。分类、隐藏开关、样式和位置会在重启后保留。锁定仅对本次会话生效。入口被系统收进溢出区时，从设置打开的「入口下方」会落在该屏右上角。
 
 <a id="选择图标"></a>
 
@@ -329,7 +336,7 @@ shasum -a 256 MBAR-0.6.0-macos-arm64.dmg
 
 已有专用适配覆盖 KeepingYouAwake、MonitorControl、Tailscale、BuhoNTFS Menu、UU Remote、
 Codex、ScreenPilot、Docker Desktop、绿联 NAS、Macs Fan Control 和 Clash Verge Rev。
-上游资源改变仍可能需要更新适配。Clash 暴露的速度文字仅在展开时读取一次。
+上游资源改变仍可能需要更新适配。Clash 提供的网速文字会在展开时读取，开发版打开原生图标刷新后还可持续更新。
 
 自动发现也会处理列表之外的应用。在同一批 20 个运行中应用的本地对照中，
 找到至少一个候选的应用从 **4 个增加到 15 个**。这是候选覆盖率，不代表 15 个均自动匹配成功，
@@ -346,6 +353,8 @@ Codex、ScreenPilot、Docker Desktop、绿联 NAS、Macs Fan Control 和 Clash V
 | 打开原应用菜单 | 左键点击可用图标 |
 | 转发右键 | 右键点击图标，实际行为由目标应用决定 |
 | 打开设置 | 下拉栏齿轮，或右键 MBAR → 设置… |
+| 切换样式或位置（开发版） | 右键点击 MBAR 入口，或在设置的「下拉栏」区域选择 |
+| 使用键盘 | Tab 进入，方向键移动，回车或空格启动当前项目 |
 | 保持下拉栏打开 | 点击锁定按钮，再次点击解锁 |
 | 收起未锁定的下拉栏 | 点击外部、按 Escape 或再次点击 MBAR |
 | 临时打开始终隐藏的项目 | 设置列表中对应行的箭头按钮 |
@@ -357,7 +366,7 @@ Codex、ScreenPilot、Docker Desktop、绿联 NAS、Macs Fan Control 和 Clash V
 
 ### 权限与本地数据
 
-辅助功能用于发现菜单项目和转发操作。录屏权限是可选的，只在主动读取原生图标时使用，MBAR 不录制音频。
+辅助功能用于发现菜单项目和转发操作。手动读取原生图标或开启下拉栏的原生刷新时会使用屏幕录制权限。刷新图像只在内存中使用，下拉栏关闭后结束采样。MBAR 不录制音频。
 
 资源读取不会执行其他应用的二进制，下载包也不附带第三方图标。MBAR 没有账号、遥测或网络后端。
 

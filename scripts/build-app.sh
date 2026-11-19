@@ -29,13 +29,13 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <key>CFBundleExecutable</key><string>MBAR</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.6.0</string>
-<key>CFBundleVersion</key><string>14</string>
+<key>CFBundleShortVersionString</key><string>0.7.0</string>
+<key>CFBundleVersion</key><string>17</string>
 <key>LSMinimumSystemVersion</key><string>27.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
-<key>NSScreenCaptureUsageDescription</key><string>MBAR 仅在你读取原生图标时获取菜单栏图像，用于预览和保存图标，不录制音频。</string>
+<key>NSScreenCaptureUsageDescription</key><string>MBAR 在你读取原生快照或启用下拉栏图标刷新时采集菜单栏画面。刷新图像仅在下拉栏打开期间使用，不采集音频。</string>
 </dict></plist>
 PLIST
 codesign --force --sign "${SIGNING_IDENTITY:--}" "$app_dir"

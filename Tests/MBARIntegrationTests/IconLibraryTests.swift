@@ -79,6 +79,43 @@ final class IconLibraryTests: XCTestCase {
         let decoded = try XCTUnwrap(IconImageDecoder.decode(png(), path: "custom.png"))
         XCTAssertThrowsError(try library.saveImport(decoded, mode: .template, bundle: app.bundle))
     }
+    @MainActor func testLiveSamplingRespectsStoredOverrideWhileLoadingAndRejectsAmbiguousBundles() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let suite = UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: root)
+        }
+        let app = try fixture(root)
+        let item = MenuItem(id: app.bundle + "#0", bundle: app.bundle, name: "Test", title: "",
+                            pid: app.pid, element: AXUIElementCreateApplication(app.pid), frame: nil)
+        let directory = root.appendingPathComponent("store")
+        let library = IconLibrary(directory: directory)
+        library.request(app)
+        let custom = try XCTUnwrap(IconImageDecoder.decode(png(.blue), path: "custom.png"))
+        try library.saveImport(custom, mode: .original, bundle: app.bundle)
+        let reopened = IconLibrary(directory: directory)
+        defer { library.shutdown(); reopened.shutdown() }
+        reopened.request(app)
+        let model = AppModel(iconLibrary: reopened, defaults: defaults)
+        model.items = [item]
+        XCTAssertEqual(reopened.entry(app.bundle).state, .discovering)
+        XCTAssertFalse(model.shelfLiveEligible(item), "A saved override takes precedence before image decoding finishes")
+
+        try reopened.reset(app.bundle)
+        XCTAssertTrue(model.shelfLiveEligible(item))
+        model.shelfLiveIcons = true
+        let image = NSImage(size: NSSize(width: 20, height: 20))
+        model.replaceLiveImages([item.id: ShelfLiveImage(image, item: item, source: "test")])
+        XCTAssertTrue(model.shelfImage(for: item) === image)
+        let second = MenuItem(id: item.id, bundle: app.bundle, name: "Test", title: "",
+                              pid: 124, element: AXUIElementCreateApplication(124), frame: nil)
+        model.items = [item, second]
+        XCTAssertFalse(model.shelfLiveEligible(item))
+        XCTAssertFalse(model.shelfLiveEligible(second))
+        XCTAssertNil(model.shelfImage(for: item), "A previously valid sample is hidden as soon as the bundle becomes ambiguous")
+    }
     @MainActor func testExitDuringDiscoveryCannotPersistLateAutomaticChoice() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

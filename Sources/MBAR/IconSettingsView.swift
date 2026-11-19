@@ -37,7 +37,7 @@ struct IconSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
                     Text(hasDraft ? "预览 · 未保存" : "当前图标").font(.headline)
-                    InfoButton(label: "图标预览说明", detail: "下拉栏使用静态图像，不反映连接状态或实时数值。")
+                    InfoButton(label: "图标预览说明", detail: "此处预览保存的静态图标。可在下拉栏设置中启用原生图标刷新。")
                 }
                 HStack(spacing: 10) {
                     sample(dark: false)

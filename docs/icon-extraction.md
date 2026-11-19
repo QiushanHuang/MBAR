@@ -1,6 +1,22 @@
 # 图标提取方法与边界
 
-适用于 v0.5.0 和 v0.6.0。
+静态资源与手动快照适用于 v0.5.0 起的版本。下节的定期刷新适用于当前开发版。
+
+## macOS 27 上哪些图标能更新
+
+2026 年 11 月 20 日，本机 macOS 27.0.1 使用下拉栏的刷新服务连续采样。在同一轮中，LemonMonitor 的三次采样得到三幅不同图像，MBAR 箭头的三次采样得到同一幅图像。关闭采样会清空内存中的图像。这个测试使用两个原本就在主屏可见的项目。
+
+| 情况 | 下拉栏采用的方法 |
+| --- | --- |
+| 项目在当前显示器上可见，应用只有一个菜单项目，位置可确认 | 默认关闭的「刷新可见的原生图标」开启后，使用 ScreenCaptureKit 批量读取菜单栏；比对采集前两次及采集后的位置和身份，再逐项检查裁切质量。成功时每轮结束后约两秒再采样。 |
+| 原生图标隐藏，但应用主动提供状态值 | 已验证的 Clash Verge Rev 适配可在辅助功能标题提供网速时重新绘制数值。该路径本身无需录屏。本机 Clash 当前标题为空；格式已与上游实现及解析测试核对。 |
+| 原生项目持续隐藏且未提供动态内容 | 继续使用已配置的静态来源。缺少图标时可从下拉栏点击该项进行配置。手选资源及自定义图片始终优先。 |
+
+AppKit 的 `NSStatusItem.button` 从应用持有的状态项目访问按钮。此次在 Apple 文档及下列实现中，未找到通用的跨进程接口，可以直接得到另一应用持续隐藏项目的实时图像。ScreenCaptureKit 允许包含菜单栏画面，读取到的内容取决于系统实际绘制的项目。[Apple NSStatusItem.button](https://developer.apple.com/documentation/appkit/nsstatusitem/button) · [Apple SCContentFilter.includeMenuBar](https://developer.apple.com/documentation/screencapturekit/sccontentfilter/includemenubar)
+
+Thaw 在项目临时可见时取得图像，并处理打开菜单造成的高亮。baaar 会临时显示一批隐藏项目并截图缓存。MBAR 仅在项目自然可见时采样，采样期间保持系统原有显示方式。[Thaw 缓存逻辑](https://github.com/thaw-app/Thaw/blob/8b34c731f9abb02dd0f9092e14327178d30f5e6a/Thaw/Items/Capture/ConcealedCapturePersistence.swift) · [baaar 的实现说明](https://github.com/bylaaabs/baaar/blob/fcecf22d75a5fd88963c3cb3fc71a5d2a852cd7f/README.md#how-it-works) · [Clash 网速标题实现](https://github.com/clash-verge-rev/clash-verge-rev/blob/3f7af9ab022d04ebc45d96b56b58cd67e90fe90d/src-tauri/src/utils/tray_speed.rs)
+
+可用 `MBAR_SHELF_PROBE_BUNDLES` 指定当前主屏上自然可见的应用，运行 `swift test --filter ShelfSamplingTests.testOpenShelfPollsVisibleItemsAndReleasesFramesOnClose`，检查成功轮数、不同图像数及关闭后的清理。
 
 ## 已实现的方法
 
@@ -50,7 +66,7 @@ AlDente 原生电池图标的预览和保存。随后在实际安装版中复现
 
 Command X、Creative Cloud 等应用没有在当前搜索范围内暴露合适的原始资源。
 它们可在图标自然可见时使用原生快照。多个菜单项目尚未建立稳定的逐项目身份，仍拒绝自动映射。
-动态图表可取静帧，不持续同步。隐藏状态下不能保证取得原生像素；本机 ScreenCaptureKit
+v0.6.0 的动态图表可取静帧。隐藏状态下不能保证取得原生像素；本机 ScreenCaptureKit
 未列出可单独截取的 MenuBarAgent 项目窗口，未采用旧系统的逐窗口抓取方式。
 AX 接口用来核实身份和坐标，不将其当作通用图片数据接口。
 

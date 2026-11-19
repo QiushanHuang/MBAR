@@ -4,22 +4,80 @@ import ApplicationServices
 import MBARCore
 
 @MainActor final class AppModel: ObservableObject {
-    @Published var items: [MenuItem] = []
+    @Published var items: [MenuItem] = [] {
+        didSet {
+            let grouped = Dictionary(grouping: items, by: \.bundle)
+            singleItemBundles = Set(grouped.compactMap { $0.value.count == 1 ? $0.key : nil })
+        }
+    }
+    private var singleItemBundles: Set<String> = []
     @Published var policy: ShelfPolicy
     @Published var trusted = AXIsProcessTrusted()
     @Published var captureGranted = CGPreflightScreenCaptureAccess()
     @Published var refreshing = false
     @Published var capturing = false
     private(set) var shelfRequested = false
-    @Published var hideRequested = UserDefaults.standard.bool(forKey: "hidingEnabled")
+    @Published var hideRequested: Bool
     @Published var status = "为菜单栏应用选择显示方式"
     @Published var error: String?
     @Published var phase: VisibilityState.Phase = .visible
     @Published var previews: [String: NSImage] = [:]
+    @Published private(set) var liveImages: [String: ShelfLiveImage] = [:]
+    @Published var shelfLiveNotice: String?
+    @Published var shelfLivePermissionDenied = false
     @Published var snapshotDate: Date?
     @Published var iconSources: [String: String] = [:]
-    @Published private(set) var shelfLock = ShelfLockPolicy(
-        showsButton: UserDefaults.standard.object(forKey: "showShelfLockButton") as? Bool ?? true)
+    @Published private(set) var shelfLock: ShelfLockPolicy
+    @Published var shelfStyle: ShelfStyle {
+        didSet {
+            guard oldValue != shelfStyle else { return }
+            defaults.set(shelfStyle.rawValue, forKey: "shelfStyle")
+            onShelfContentChanged?()
+        }
+    }
+    @Published var shelfPlacement: ShelfPlacement {
+        didSet {
+            guard oldValue != shelfPlacement else { return }
+            defaults.set(shelfPlacement.rawValue, forKey: "shelfPlacement")
+            onShelfContentChanged?()
+        }
+    }
+    @Published var shelfAlignment: ShelfAlignment {
+        didSet {
+            guard oldValue != shelfAlignment else { return }
+            defaults.set(shelfAlignment.rawValue, forKey: "shelfAlignment")
+            onShelfContentChanged?()
+        }
+    }
+    @Published var shelfLiveIcons: Bool {
+        didSet {
+            guard oldValue != shelfLiveIcons else { return }
+            defaults.set(shelfLiveIcons, forKey: "shelfLiveIcons")
+            onShelfLiveIconsChanged?()
+        }
+    }
+    @Published private var appearancePreferences: ShelfAppearancePreferences
+    var shelfAppearance: ShelfAppearance { appearancePreferences.appearance }
+    var shelfPresets: [ShelfAppearancePreset] { appearancePreferences.presets }
+    var selectedShelfPresetID: String { appearancePreferences.selectedID }
+    var onShelfAppearanceChanged: (() -> Void)?
+
+    private func changeAppearance(_ edit: (inout ShelfAppearancePreferences) -> Void) {
+        var updated = appearancePreferences
+        edit(&updated)
+        guard updated != appearancePreferences, let data = try? JSONEncoder().encode(updated) else { return }
+        let needsRedraw = updated.appearance != shelfAppearance
+        appearancePreferences = updated
+        defaults.set(data, forKey: "shelfAppearancePreferences")
+        if needsRedraw { onShelfAppearanceChanged?() }
+    }
+    func selectShelfPreset(_ id: String) { changeAppearance { $0.select(id) } }
+    func setShelfAppearance(_ appearance: ShelfAppearance) { changeAppearance { $0.customize(appearance) } }
+    func saveShelfPreset(named name: String) { changeAppearance { _ = $0.save(named: name) } }
+    func updateShelfPreset(_ id: String) { changeAppearance { $0.update(id) } }
+    func deleteShelfPreset(_ id: String) { changeAppearance { $0.delete(id) } }
+
+    private let defaults: UserDefaults
     let discovery = MenuDiscovery()
     let hiding: HidingService
     let iconLibrary: IconLibrary
@@ -40,6 +98,7 @@ import MBARCore
     var onRecovery: (() -> Void)?
     var shelfVisible: (() -> Bool)?
     var onShelfContentChanged: (() -> Void)?
+    var onShelfLiveIconsChanged: (() -> Void)?
     var onPreparationCancelled: (() -> Void)?
     var groups: [(bundle: String, items: [MenuItem])] {
         Dictionary(grouping: items, by: \.bundle).map { ($0.key, $0.value) }
@@ -57,16 +116,26 @@ import MBARCore
     func unlockShelf() { shelfLock.unlock() }
     func setShowsShelfLock(_ value: Bool) {
         shelfLock.setShowsButton(value)
-        UserDefaults.standard.set(value, forKey: "showShelfLockButton")
+        defaults.set(value, forKey: "showShelfLockButton")
         onShelfContentChanged?()
     }
-    init(hiding: HidingService? = nil, iconLibrary: IconLibrary? = nil) {
+    init(hiding: HidingService? = nil, iconLibrary: IconLibrary? = nil, defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        appearancePreferences = defaults.data(forKey: "shelfAppearancePreferences").flatMap {
+            try? JSONDecoder().decode(ShelfAppearancePreferences.self, from: $0)
+        } ?? ShelfAppearancePreferences()
+        shelfStyle = defaults.string(forKey: "shelfStyle").flatMap(ShelfStyle.init(rawValue:)) ?? .strip
+        shelfPlacement = defaults.string(forKey: "shelfPlacement").flatMap(ShelfPlacement.init(rawValue:)) ?? .anchor
+        shelfAlignment = defaults.string(forKey: "shelfAlignment").flatMap(ShelfAlignment.init(rawValue:)) ?? .left
+        shelfLiveIcons = defaults.bool(forKey: "shelfLiveIcons")
+        shelfLock = ShelfLockPolicy(showsButton: defaults.object(forKey: "showShelfLockButton") as? Bool ?? true)
+        hideRequested = defaults.bool(forKey: "hidingEnabled")
         self.hiding = hiding ?? HidingService()
         self.iconLibrary = iconLibrary ?? IconLibrary()
-        let saved = (UserDefaults.standard.dictionary(forKey: "itemCategories") as? [String: String] ?? [:]).compactMapValues(ItemCategory.init(rawValue:))
-        let legacy = Set(UserDefaults.standard.stringArray(forKey: "selectedBundles") ?? [])
+        let saved = (defaults.dictionary(forKey: "itemCategories") as? [String: String] ?? [:]).compactMapValues(ItemCategory.init(rawValue:))
+        let legacy = Set(defaults.stringArray(forKey: "selectedBundles") ?? [])
         policy = ShelfPolicy(assignments: saved, legacySelected: legacy)
-        UserDefaults.standard.set(policy.assignments.mapValues(\.rawValue), forKey: "itemCategories")
+        defaults.set(policy.assignments.mapValues(\.rawValue), forKey: "itemCategories")
         self.iconLibrary.onChange = { [weak self] in
             guard let self else { return }
             self.objectWillChange.send()
@@ -77,7 +146,7 @@ import MBARCore
             self.phase = phase
             if let message {
                 self.error = message
-                if phase == .visible { self.hideRequested = false; UserDefaults.standard.set(false, forKey: "hidingEnabled") }
+                if phase == .visible { self.hideRequested = false; self.defaults.set(false, forKey: "hidingEnabled") }
             }
         }
     }
@@ -85,7 +154,7 @@ import MBARCore
         guard MenuPolicy.canHide(bundle, own: ownBundle) else { return }
         cancelSnapshots()
         policy.assignments[bundle] = category
-        UserDefaults.standard.set(policy.assignments.mapValues(\.rawValue), forKey: "itemCategories")
+        defaults.set(policy.assignments.mapValues(\.rawValue), forKey: "itemCategories")
         previews = previews.filter { key, _ in collected.contains { $0.id == key } }
         applyHiding()
         onShelfContentChanged?()
@@ -154,7 +223,7 @@ import MBARCore
         checkPermissions()
         guard trusted, !policy.hidden.isEmpty else { error = "请授权辅助功能，并为至少一个应用选择隐藏方式。"; return }
         hideRequested = true
-        UserDefaults.standard.set(true, forKey: "hidingEnabled")
+        defaults.set(true, forKey: "hidingEnabled")
         if hiding.suspended { suspendForSystemChange(); return }
         applyHiding()
     }
@@ -173,7 +242,7 @@ import MBARCore
         cancelSnapshots()
         interactionGeneration += 1; stopMenuObserver()
         hideRequested = false
-        UserDefaults.standard.set(false, forKey: "hidingEnabled")
+        defaults.set(false, forKey: "hidingEnabled")
         hiding.restore()
         status = "已暂停收纳，全部图标恢复显示"
         shelfLock.unlock()
@@ -284,7 +353,7 @@ import MBARCore
             else { failures[item.id] = entry.message.isEmpty ? entry.state.rawValue : entry.message }
         }
         previews = images; iconSources = sources; snapshotDate = Date()
-        UserDefaults.standard.set([
+        defaults.set([
             "requested": collected.map(\.id), "loaded": images.keys.sorted(), "sources": sources,
             "failures": failures, "timestamp": ISO8601DateFormatter().string(from: Date())
         ], forKey: "lastIconSourceDiagnostics")
@@ -299,7 +368,40 @@ import MBARCore
     func settingsIcon(for item: MenuItem) -> NSImage {
         NSRunningApplication(processIdentifier: item.pid)?.icon ?? NSImage(systemSymbolName: "app.dashed", accessibilityDescription: item.name)!
     }
-    func previewWidth(for item: MenuItem) -> CGFloat { ShelfMetrics.itemWidth(previews[item.id]?.size ?? item.frame?.size) }
+    func shelfLiveEligible(_ item: MenuItem) -> Bool {
+        guard singleItemBundles.contains(item.bundle) else { return false }
+        switch iconLibrary.savedMapping(for: item)?.origin {
+        case .custom, .userSelected: return false
+        default: return true
+        }
+    }
+    private func liveImage(for item: MenuItem) -> ShelfLiveImage? {
+        guard shelfLiveIcons, shelfLiveEligible(item), let sample = liveImages[item.id],
+              sample.pid == item.pid, CFEqual(sample.element, item.element) else { return nil }
+        return sample
+    }
+    func shelfImage(for item: MenuItem) -> NSImage? {
+        if let sample = liveImage(for: item) { return sample.image }
+        if shelfLiveIcons, shelfLiveEligible(item), let glyph = iconLibrary.verifiedStatusGlyph(for: item) { return glyph }
+        return previews[item.id]
+    }
+    func shelfItemLabel(for item: MenuItem) -> String {
+        // Scan-time status strings can be older than a live glyph or a semantic reading.
+        if shelfLiveIcons, item.bundle == ShelfStatusText.bundleID {
+            return liveImage(for: item)?.value.map { item.name + " · " + $0 } ?? item.name
+        }
+        return item.title.isEmpty || item.title == item.name ? item.name : item.name + " · " + item.title
+    }
+    func shelfIconDescription(for item: MenuItem) -> String {
+        liveImage(for: item)?.source ?? iconLibrary.entry(item.bundle).state.rawValue
+    }
+    func replaceLiveImages(_ samples: [String: ShelfLiveImage]) {
+        guard !samples.isEmpty || !liveImages.isEmpty else { return }
+        let oldWidths = collected.map { previewWidth(for: $0) }
+        liveImages = samples
+        if oldWidths != collected.map({ previewWidth(for: $0) }) { onShelfContentChanged?() }
+    }
+    func previewWidth(for item: MenuItem) -> CGFloat { ShelfMetrics.itemWidth(shelfImage(for: item)?.size ?? item.frame?.size) }
     func openItem(_ item: MenuItem, right: Bool, fromSettings: Bool = false) {
         guard fromSettings || policy.category(item.bundle) == .automatic else { return }
         guard !hiding.suspended else { error = "系统菜单栏正在恢复，请稍后再打开菜单。"; return }

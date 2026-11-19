@@ -9,7 +9,7 @@ struct CapturedIcons {
 }
 // A still of the menu bar only: no desktop/windows, audio, recording stream or files.
 @MainActor final class IconCapture {
-    func capture(_ items: [MenuItem]) async -> CapturedIcons {
+    func capture(_ items: [MenuItem], recordGeometry: Bool = true) async -> CapturedIcons {
         do {
           return try await ScreenCaptureAccess.shared.perform {
             let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
@@ -47,7 +47,7 @@ struct CapturedIcons {
                     output[item.id] = NSImage(cgImage: cg, size: frame.size)
                 }
             }
-            UserDefaults.standard.set(geometry, forKey: "lastCaptureGeometry")
+            if recordGeometry { UserDefaults.standard.set(geometry, forKey: "lastCaptureGeometry") }
             return CapturedIcons(images: output, failure: output.isEmpty && !items.isEmpty ? "系统没有返回可用图标快照，请刷新后重试。" : nil)
           }
         } catch is CancellationError { return .init(images: [:], failure: nil) }

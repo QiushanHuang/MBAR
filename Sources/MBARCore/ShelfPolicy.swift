@@ -37,8 +37,41 @@ public struct SnapshotSession {
     public mutating func cancel() { generation += 1; active = false }
     public func accepts(_ token: Int) -> Bool { active && token == generation }
 }
+public enum ShelfStyle: String, CaseIterable, Sendable { case strip, grid, list }
+public enum ShelfPlacement: String, CaseIterable, Sendable { case anchor, left, right }
+public enum ShelfAlignment: String, CaseIterable, Sendable { case left, center, right }
+
 public enum ShelfMetrics {
     public static let height: CGFloat = 36
+    public static let tileHeight: CGFloat = 56
+    public static let listRowHeight: CGFloat = 36
+    public static let rowSpacing: CGFloat = 4
+    public static let bodyInset: CGFloat = 6
+    public static let footerHeight: CGFloat = 34
+
+    public static func gridColumns(for width: CGFloat, itemCount: Int) -> Int {
+        let fitting = Int((width - 2 * bodyInset + rowSpacing) / (84 + rowSpacing))
+        return max(1, min(4, itemCount, fitting))
+    }
+
+    public static func size(style: ShelfStyle, itemWidths: [CGFloat], available: CGSize, showsLock: Bool) -> CGSize {
+        let count = itemWidths.count
+        let maxWidth = max(1, available.width)
+        let maxHeight = max(1, available.height)
+        if style == .strip {
+            let ideal = count == 0 ? 190 : width(itemWidths: itemWidths, available: maxWidth, showsLock: showsLock)
+            return CGSize(width: min(ideal, maxWidth), height: min(height, maxHeight))
+        }
+        let columns = CGFloat(max(1, min(count, 4)))
+        let ideal = style == .list ? 264 : max(208, 2 * bodyInset + columns * 92 + (columns - 1) * rowSpacing)
+        let width = min(ideal, maxWidth)
+        let fittedColumns = style == .list ? 1 : gridColumns(for: width, itemCount: count)
+        let rows = max(1, (count + fittedColumns - 1) / fittedColumns)
+        let visibleRows = CGFloat(min(rows, style == .list ? 8 : 4))
+        let rowHeight = style == .list ? listRowHeight : tileHeight
+        let height = 2 * bodyInset + visibleRows * rowHeight + (visibleRows - 1) * rowSpacing + footerHeight
+        return CGSize(width: width, height: min(height, maxHeight))
+    }
     public static func itemWidth(_ size: CGSize?) -> CGFloat {
         guard let size, size.height > 0 else { return 28 }
         return min(320, max(24, size.width * 24 / size.height))

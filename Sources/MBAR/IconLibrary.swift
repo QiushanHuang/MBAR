@@ -26,6 +26,7 @@ struct IconEntry {
     var scanning = false
     var complete = false
     var mapping: IconMapping?
+    var statusGlyph: NSImage?
 }
 private final class IconCancellation: @unchecked Sendable {
     private let lock = NSLock()
@@ -69,6 +70,16 @@ private final class IconResourceWorker {
         catch { storageError = "无法读取图标选择记录，原文件已保留：\(error.localizedDescription)" }
     }
     func entry(_ bundle: String) -> IconEntry { entries[bundle] ?? IconEntry() }
+    func savedMapping(for item: MenuItem) -> IconMapping? {
+        guard let app = apps[item.bundle], app.pid == item.pid else { return nil }
+        return store?.mapping(for: app.identity.key)
+    }
+    func verifiedStatusGlyph(for item: MenuItem) -> NSImage? {
+        guard let app = apps[item.bundle], app.pid == item.pid, app.itemCount == 1,
+              let current = app.item, current.id == item.id, CFEqual(current.element, item.element),
+              entry(item.bundle).state == .verified, !hasOverride(item.bundle) else { return nil }
+        return entry(item.bundle).statusGlyph
+    }
     func canUndo(_ bundle: String) -> Bool { apps[bundle].map { store?.canUndo(for: $0.identity.key) == true } ?? false }
     func hasOverride(_ bundle: String) -> Bool {
         guard let app = apps[bundle], let mapping = store?.mapping(for: app.identity.key) else { return false }
@@ -98,7 +109,7 @@ private final class IconResourceWorker {
             if case .imported = $0.locator { root = imports } else { root = app.resources }
             return metadata(root.appendingPathComponent($0.locator.resourcePath))
         } ?? ""
-        let liveTitle = app.bundle == "io.github.clash-verge-rev.clash-verge-rev" ? app.item?.title ?? "" : ""
+        let liveTitle = app.bundle == ShelfStatusText.bundleID ? app.item?.title ?? "" : ""
         return "\(app.identity.key):\(app.identity.version):\(app.identity.shortVersion):\(app.pid):\(app.itemCount):\(metadata(app.resources)):\(resourceStamp):\(liveTitle)"
     }
     func request(_ app: IconApplication, force: Bool = false, includeCandidates: Bool = false) {
@@ -165,6 +176,14 @@ private final class IconResourceWorker {
                 let loaded = await VerifiedMenuIconSource().load([item])
                 if let image = loaded.images[item.id] {
                     output = IconEntry(state: .verified, image: image, source: loaded.sources[item.id] ?? "已验证的应用适配")
+                    if item.bundle == ShelfStatusText.bundleID {
+                        output.statusGlyph = image
+                        let lines = ShelfStatusText.rateLines(item.title)
+                        if !lines.isEmpty {
+                            output.image = ShelfStatusText.render(image, lines: lines)
+                            output.source += "；网速取自上次扫描"
+                        }
+                    }
                 }
             }
             if output.image == nil, let mapping, let restored = await load(mapping) { output = restored }

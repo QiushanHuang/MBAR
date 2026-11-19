@@ -12,6 +12,36 @@ private extension ItemCategory {
     }
 }
 
+extension ShelfStyle {
+    var title: String {
+        switch self {
+        case .strip: return "图标条"
+        case .grid: return "网格"
+        case .list: return "列表"
+        }
+    }
+}
+
+extension ShelfPlacement {
+    var title: String {
+        switch self {
+        case .left: return "屏幕左侧"
+        case .anchor: return "入口下方"
+        case .right: return "屏幕右侧"
+        }
+    }
+}
+
+extension ShelfAlignment {
+    var title: String {
+        switch self {
+        case .left: return "向左展开"
+        case .center: return "居中展开"
+        case .right: return "向右展开"
+        }
+    }
+}
+
 struct InfoButton: View {
     let label: String
     let detail: String
@@ -36,6 +66,7 @@ struct InfoButton: View {
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
+    @State private var showsAppearance = false
 
     private var hidingUnavailable: String? {
         if !model.trusted { return "请先允许辅助功能。" }
@@ -72,7 +103,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .frame(minHeight: 180, maxHeight: .infinity)
+            .frame(minHeight: 110, maxHeight: .infinity)
             .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 12))
 
             VStack(alignment: .leading, spacing: 10) {
@@ -91,8 +122,6 @@ struct SettingsView: View {
                     Label("菜单栏出现异常时，可显示全部并暂停。", systemImage: "exclamationmark.triangle")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Toggle("在下拉栏显示锁定按钮", isOn: Binding(
-                    get: { model.shelfLock.showsButton }, set: { model.setShowsShelfLock($0) }))
             }
 
             if model.trusted, let error = model.error {
@@ -100,6 +129,7 @@ struct SettingsView: View {
                     .font(.callout).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
             Divider()
+            shelfSettings
             HStack {
                 Button("退出 MBAR") { NSApp.terminate(nil) }
                 Spacer()
@@ -117,6 +147,67 @@ struct SettingsView: View {
                         dismiss: { model.iconSettingsBundle = nil })
                 }
             }
+    }
+
+    private var shelfSettings: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Text("下拉栏").font(.headline)
+                Spacer()
+                Button { showsAppearance = true } label: {
+                    Label("外观…", systemImage: "paintpalette")
+                }
+                .controlSize(.small)
+                .accessibilityLabel("下拉栏外观")
+                .sheet(isPresented: $showsAppearance) {
+                    ShelfAppearanceSettings(model: model)
+                }
+            }
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
+                GridRow {
+                    Text("样式")
+                    Picker("下拉栏样式", selection: $model.shelfStyle) {
+                        ForEach(ShelfStyle.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                }
+                GridRow {
+                    Text("位置")
+                    Picker("下拉栏位置", selection: $model.shelfPlacement) {
+                        ForEach([ShelfPlacement.left, .anchor, .right], id: \.self) { Text($0.title).tag($0) }
+                    }
+                }
+                if model.shelfPlacement == .anchor {
+                    GridRow {
+                        Text("展开方向")
+                        Picker("入口下方展开方向", selection: $model.shelfAlignment) {
+                            ForEach(ShelfAlignment.allCases, id: \.self) { Text($0.title).tag($0) }
+                        }
+                        .help("选择相对 MBAR 入口的展开方向。靠近屏幕边缘时，下拉栏会移入可见区域。")
+                    }
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            HStack(spacing: 6) {
+                Toggle("显示锁定按钮", isOn: Binding(
+                    get: { model.shelfLock.showsButton }, set: { model.setShowsShelfLock($0) }))
+                    .help("锁定后，点按其他窗口时保持下拉栏打开。")
+                    .padding(.trailing, 14)
+                Toggle("刷新可见的原生图标", isOn: $model.shelfLiveIcons)
+                InfoButton(label: "原生图标刷新说明", detail: "下拉栏打开期间，MBAR 使用屏幕录制权限读取菜单栏中可见的图标。手选和导入的图标优先。隐藏项目沿用静态图标，Clash 可在提供网速文字时更新数值。")
+            }
+            if model.shelfLiveIcons, let notice = model.shelfLiveNotice {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Label(notice, systemImage: "info.circle")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if model.shelfLivePermissionDenied {
+                        Button("屏幕录制设置") { ScreenCaptureAccess.shared.openSettings() }
+                            .controlSize(.small).fixedSize()
+                    }
+                }
+            }
+        }
     }
 
     private var emptyState: some View {
@@ -165,113 +256,344 @@ struct SettingsView: View {
     }
 }
 
-// Exactly one row. Only the snapshots scroll; the gear always stays at the right.
 struct ShelfView: View {
     @ObservedObject var model: AppModel
     let width: CGFloat
+    var height: CGFloat = ShelfMetrics.height
     @StateObject private var focus = ShelfFocusCoordinator()
+
     var body: some View {
-        let collected = model.collected
-        return HStack(spacing: 2) {
-            if !collected.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 4) {
-                        ForEach(Array(collected.enumerated()), id: \.element.id) { index, item in
-                            ItemButton(image: model.previews[item.id], name: model.previews[item.id] == nil ? "\(item.name)：请选择图标" : "\(item.name) · \(model.iconLibrary.entry(item.bundle).state.rawValue)",
-                                       enabled: !model.capturing, focus: focus, order: index) { right in
-                                if model.previews[item.id] == nil { model.configureIcon(item.bundle) }
-                                else { model.openItem(item, right: right) }
-                            }.frame(width: model.previewWidth(for: item), height: 28)
+        let items = model.collected
+        Group {
+            if model.shelfStyle == .strip {
+                HStack(spacing: 2) {
+                    if items.isEmpty {
+                        emptyState
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 4) {
+                                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                                    itemControl(item, index: index, columns: items.count)
+                                        .frame(width: model.previewWidth(for: item), height: 28)
+                                }
+                            }
                         }
-                    }.frame(height: 28)
-                }.frame(maxWidth: .infinity)
-            } else { Spacer(minLength: 0) }
-            if model.shelfLock.showsButton {
-                ItemButton(image: NSImage(systemSymbolName: model.shelfLock.isLocked ? "lock.fill" : "lock.open", accessibilityDescription: nil),
-                           name: model.shelfLock.isLocked ? "解锁下拉栏" : "锁定下拉栏",
-                           enabled: true, focus: focus, order: collected.count, allowsRightClick: false) { _ in
-                    model.toggleShelfLock()
-                }.frame(width: 28, height: 28)
+                    }
+                    Divider().frame(height: 16)
+                    tools(itemCount: items.count, columns: items.count)
+                }
+                .padding(.horizontal, 4)
+            } else {
+                let columns = model.shelfStyle == .grid ? ShelfMetrics.gridColumns(for: width, itemCount: items.count) : 1
+                VStack(spacing: 0) {
+                    if items.isEmpty {
+                        emptyState
+                    } else {
+                        ScrollView(.vertical) {
+                            // Keep offscreen buttons registered so keyboard navigation can reach every row.
+                            VStack(spacing: ShelfMetrics.rowSpacing) {
+                                ForEach(0..<((items.count + columns - 1) / columns), id: \.self) { row in
+                                    HStack(spacing: ShelfMetrics.rowSpacing) {
+                                        ForEach(0..<columns, id: \.self) { column in
+                                            let index = row * columns + column
+                                            if index < items.count {
+                                                itemControl(items[index], index: index, columns: columns)
+                                            } else {
+                                                Color.clear.accessibilityHidden(true)
+                                            }
+                                        }
+                                    }
+                                    .frame(height: model.shelfStyle == .grid ? ShelfMetrics.tileHeight : ShelfMetrics.listRowHeight)
+                                }
+                            }
+                            .padding(ShelfMetrics.bodyInset)
+                        }
+                    }
+                    HStack(spacing: 2) {
+                        if !items.isEmpty {
+                            Text("\(items.count) 个项目")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 6)
+                        }
+                        Spacer(minLength: 0)
+                        tools(itemCount: items.count, columns: columns)
+                    }
+                    .padding(.horizontal, ShelfMetrics.bodyInset)
+                    .frame(height: ShelfMetrics.footerHeight)
+                    .overlay(alignment: .top) { Divider() }
+                }
             }
-            ItemButton(image: NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil),
-                       name: "MBAR 设置", enabled: true, focus: focus, order: collected.count + 1, allowsRightClick: false) { _ in
-                model.showSettings?()
-            }.frame(width: 28, height: 28)
-        }.padding(.horizontal, 4).frame(width: width, height: ShelfMetrics.height)
+        }
+        .frame(width: width, height: height)
+    }
+
+    private var emptyState: some View {
+        Label("尚未收入应用", systemImage: "tray")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func itemControl(_ item: MenuItem, index: Int, columns: Int) -> some View {
+        let image = model.shelfImage(for: item)
+        let help = image == nil ? "选择此项目的图标" : model.shelfIconDescription(for: item)
+        let itemName = model.shelfItemLabel(for: item)
+        let icon = Group {
+            if let image {
+                Image(nsImage: image)
+                    .renderingMode(image.isTemplate ? .template : .original)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: "circle.dotted")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        return ZStack {
+            Group {
+                switch model.shelfStyle {
+                case .strip:
+                    icon.frame(maxHeight: 24)
+                case .grid:
+                    VStack(spacing: 4) {
+                        icon.frame(height: 21)
+                        Text(item.name).font(.caption).lineLimit(1)
+                    }
+                    .padding(.horizontal, 4)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.quaternary.opacity(0.48), in: RoundedRectangle(cornerRadius: 7))
+                case .list:
+                    HStack(spacing: 9) {
+                        icon.frame(width: min(max(38, model.previewWidth(for: item)), width * 0.42), height: 21)
+                        Text(item.name).font(.body).lineLimit(1)
+                        Spacer(minLength: 2)
+                        Image(systemName: image == nil ? "slider.horizontal.3" : "chevron.forward")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 8)
+                }
+            }
+            .accessibilityHidden(true)
+            .allowsHitTesting(false)
+            .opacity(model.capturing ? 0.5 : 1)
+            ShelfTarget(label: itemName, help: help, enabled: !model.capturing,
+                        focus: focus, order: index, row: index / columns, column: index % columns,
+                        allowsRightClick: image != nil) { right in
+                if image == nil { model.configureIcon(item.bundle) }
+                else { model.openItem(item, right: right) }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder private func tools(itemCount: Int, columns: Int) -> some View {
+        let strip = model.shelfStyle == .strip
+        let row = strip ? 0 : (itemCount + columns - 1) / columns
+        let firstColumn = strip ? itemCount : max(0, columns - (model.shelfLock.showsButton ? 2 : 1))
+        if model.shelfLock.showsButton {
+            let locked = model.shelfLock.isLocked
+            tool(symbol: locked ? "lock.fill" : "lock.open", label: locked ? "解锁下拉栏" : "锁定下拉栏",
+                 selected: locked, order: itemCount, row: row, column: firstColumn) {
+                model.toggleShelfLock()
+            }
+        }
+        tool(symbol: "gearshape", label: "MBAR 设置", selected: false, order: itemCount + 1,
+             row: row, column: firstColumn + (model.shelfLock.showsButton ? 1 : 0)) {
+            model.showSettings?()
+        }
+    }
+
+    private func tool(symbol: String, label: String, selected: Bool, order: Int, row: Int, column: Int,
+                      action: @escaping () -> Void) -> some View {
+        ZStack {
+            Image(systemName: symbol)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(selected ? Color.accentColor : .secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(selected ? Color.accentColor.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 6))
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            ShelfTarget(label: label, help: "", enabled: true, focus: focus, order: order,
+                        row: row, column: column, allowsRightClick: false) { _ in action() }
+        }
+        .frame(width: 28, height: 28)
+    }
+}
+
+/// The panel focuses its host on opening so no menu item looks preselected.
+final class ShelfHostingView: NSHostingView<ShelfView> {
+    override func keyDown(with event: NSEvent) {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.shift, .capsLock])
+        if window?.firstResponder === self, event.keyCode == 48, modifiers.isEmpty,
+           let coordinator = coordinator(in: self) {
+            coordinator.enter(backwards: event.modifierFlags.contains(.shift))
+        } else {
+            super.keyDown(with: event)
+        }
+    }
+
+    private func coordinator(in view: NSView) -> ShelfFocusCoordinator? {
+        if let button = view as? ShelfButton { return button.focusCoordinator }
+        for child in view.subviews {
+            if let focus = coordinator(in: child) { return focus }
+        }
+        return nil
     }
 }
 
 @MainActor final class ShelfFocusCoordinator: ObservableObject {
     private struct Entry {
         weak var button: ShelfButton?
-        var order: Int
+        let order: Int
+        let row: Int
+        let column: Int
     }
     private var entries: [ObjectIdentifier: Entry] = [:]
 
-    func register(_ button: ShelfButton, order: Int) {
-        entries[ObjectIdentifier(button)] = Entry(button: button, order: order)
+    func register(_ button: ShelfButton, order: Int, row: Int = 0, column: Int? = nil) {
+        entries[ObjectIdentifier(button)] = Entry(button: button, order: order, row: row, column: column ?? order)
     }
     func unregister(_ button: ShelfButton) { entries.removeValue(forKey: ObjectIdentifier(button)) }
+
+    private var available: [Entry] {
+        entries.values.filter { $0.button?.isEnabled == true }.sorted { $0.order < $1.order }
+    }
+
+    func enter(backwards: Bool) {
+        let entries = available
+        guard let button = (backwards ? entries.last : entries.first)?.button else { return }
+        button.window?.makeFirstResponder(button)
+    }
     func moveFocus(from current: ShelfButton, backwards: Bool) {
-        let buttons = entries.values.sorted { $0.order < $1.order }.compactMap(\.button).filter(\.isEnabled)
-        guard let index = buttons.firstIndex(where: { $0 === current }), !buttons.isEmpty else { return }
+        let buttons = available.compactMap(\.button)
+        guard let index = buttons.firstIndex(where: { $0 === current }) else { return }
         let next = (index + (backwards ? -1 : 1) + buttons.count) % buttons.count
         current.window?.makeFirstResponder(buttons[next])
     }
+
+    func moveFocus(from current: ShelfButton, horizontal: Int, vertical: Int) {
+        guard let origin = entries[ObjectIdentifier(current)] else { return }
+        let target: Entry?
+        if vertical == 0 {
+            target = available.filter { $0.row == origin.row && ($0.column - origin.column) * horizontal > 0 }
+                .min { abs($0.column - origin.column) < abs($1.column - origin.column) }
+        } else {
+            target = available.filter { ($0.row - origin.row) * vertical > 0 }.min {
+                (abs($0.row - origin.row), abs($0.column - origin.column)) <
+                (abs($1.row - origin.row), abs($1.column - origin.column))
+            }
+        }
+        if let button = target?.button { current.window?.makeFirstResponder(button) }
+    }
 }
 
-struct ItemButton: NSViewRepresentable {
-    let image: NSImage?
-    let name: String
+/// Native input over the SwiftUI label retains first-click, right-click and VoiceOver button behavior.
+private struct ShelfTarget: NSViewRepresentable {
+    let label: String
+    let help: String
     let enabled: Bool
     let focus: ShelfFocusCoordinator
     let order: Int
-    var allowsRightClick = true
+    let row: Int
+    let column: Int
+    let allowsRightClick: Bool
     let action: (Bool) -> Void
+
     func makeNSView(context: Context) -> ShelfButton {
         let button = ShelfButton()
-        button.isBordered = false; button.bezelStyle = .regularSquare
-        button.imagePosition = .imageOnly; button.imageScaling = .scaleProportionallyDown
-        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        button.target = button; button.action = #selector(ShelfButton.invoke)
+        button.isBordered = false
+        button.title = ""
+        button.focusRingType = .none
+        button.target = button
+        button.action = #selector(ShelfButton.invoke)
         return button
     }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: ShelfButton, context: Context) -> CGSize? {
+        proposal.replacingUnspecifiedDimensions(by: CGSize(width: 28, height: 28))
+    }
     func updateNSView(_ button: ShelfButton, context: Context) {
-        if let image, let copy = image.copy() as? NSImage {
-            let ratio = min(1, 24 / max(1, copy.size.height))
-            copy.size = CGSize(width: copy.size.width * ratio, height: copy.size.height * ratio)
-            button.image = copy
-        } else {
-            // Missing artwork opens configuration, never substitutes an application icon.
-            button.image = NSImage(systemSymbolName: "circle.dotted", accessibilityDescription: "图标待选择")
-        }
         button.isEnabled = enabled
-        button.toolTip = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        button.setAccessibilityLabel(name)
-        button.setAccessibilityHelp(name.trimmingCharacters(in: .whitespacesAndNewlines))
+        button.toolTip = help.isEmpty ? label : "\(label)\n\(help)"
+        button.setAccessibilityLabel(label)
+        button.setAccessibilityHelp(help)
         button.callback = action
         button.allowsRightClick = allowsRightClick
         button.focusCoordinator = focus
-        focus.register(button, order: order)
+        focus.register(button, order: order, row: row, column: column)
     }
     static func dismantleNSView(_ button: ShelfButton, coordinator: ()) { button.focusCoordinator?.unregister(button) }
 }
+
 final class ShelfButton: NSButton {
     var callback: ((Bool) -> Void)?
     weak var focusCoordinator: ShelfFocusCoordinator?
     var allowsRightClick = true
+    private var hoverArea: NSTrackingArea?
+    private var hovered = false { didSet { needsDisplay = true } }
+
     override var acceptsFirstResponder: Bool { isEnabled }
-    @objc func invoke() { guard isEnabled else { return }; callback?(NSApp.currentEvent?.type == .rightMouseUp) }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    @objc func invoke() { if isEnabled { callback?(false) } }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.control), allowsRightClick {
+            if isEnabled { callback?(true) }
+        } else { super.mouseDown(with: event) }
+    }
     override func rightMouseDown(with event: NSEvent) { if isEnabled && allowsRightClick { callback?(true) } }
+
     override func keyDown(with event: NSEvent) {
-        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if event.keyCode == 48, modifiers.subtracting([.shift, .capsLock]).isEmpty, let focusCoordinator {
-            focusCoordinator.moveFocus(from: self, backwards: event.modifierFlags.contains(.shift))
-        } else { super.keyDown(with: event) }
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+        if event.keyCode == 48, modifiers.subtracting(.shift).isEmpty, let focusCoordinator {
+            focusCoordinator.moveFocus(from: self, backwards: modifiers.contains(.shift))
+            return
+        }
+        guard modifiers.isEmpty else { super.keyDown(with: event); return }
+        switch event.keyCode {
+        case 123: focusCoordinator?.moveFocus(from: self, horizontal: -1, vertical: 0)
+        case 124: focusCoordinator?.moveFocus(from: self, horizontal: 1, vertical: 0)
+        case 125: focusCoordinator?.moveFocus(from: self, horizontal: 0, vertical: 1)
+        case 126: focusCoordinator?.moveFocus(from: self, horizontal: 0, vertical: -1)
+        case 36, 49, 76: if !event.isARepeat { invoke() }
+        default: super.keyDown(with: event)
+        }
+    }
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverArea { removeTrackingArea(hoverArea) }
+        let area = NSTrackingArea(rect: .zero, options: [.inVisibleRect, .activeAlways, .mouseEnteredAndExited],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        hoverArea = area
+        if let window {
+            hovered = visibleRect.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+        }
+    }
+    override func mouseEntered(with event: NSEvent) { hovered = true }
+    override func mouseExited(with event: NSEvent) { hovered = false }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1.5, dy: 1.5), xRadius: 6, yRadius: 6)
+        if isEnabled && (isHighlighted || hovered) {
+            NSColor.labelColor.withAlphaComponent(isHighlighted ? 0.18 : 0.08).setFill()
+            path.fill()
+        }
+        if window?.firstResponder === self {
+            NSColor.keyboardFocusIndicatorColor.setStroke()
+            path.lineWidth = 2
+            path.stroke()
+        }
     }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
-        if accepted { scrollToVisible(bounds) }
+        if accepted { scrollToVisible(bounds); needsDisplay = true }
         return accepted
+    }
+    override func resignFirstResponder() -> Bool {
+        needsDisplay = true
+        return super.resignFirstResponder()
     }
 }

@@ -104,29 +104,40 @@ final class MenuDiscovery: @unchecked Sendable {
         }
     }
     /// Passive geometry only. Unlike captureFrames, this never invokes overflow or changes visibility.
-    func visibleFrames(_ items: [MenuItem]) async -> [MenuItem] {
-        await withCheckedContinuation { continuation in
-            queue.async {
-                guard AXIsProcessTrusted() else { continuation.resume(returning: []); return }
-                var ids = [CGDirectDisplayID](repeating: 0, count: 16), count: UInt32 = 0
-                guard CGGetActiveDisplayList(16, &ids, &count) == .success else { continuation.resume(returning: []); return }
-                let displays = ids.prefix(Int(count)).sorted { $0 == CGMainDisplayID() && $1 != CGMainDisplayID() }.map { CGDisplayBounds($0) }
-                // Confirm the app still exposes exactly one item; PID alone cannot disambiguate multiple buttons.
-                let eligible = items.filter {
-                    let root = AXUIElementCreateApplication($0.pid); AXUIElementSetMessagingTimeout(root, 0.15)
-                    return Self.extras(root).count == 1
+    func visibleFrames(_ items: [MenuItem], display preferredDisplay: CGRect? = nil) async -> [MenuItem] {
+        let cancellation = CaptureCancellation()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                queue.async {
+                    continuation.resume(returning: Self.visibleFrames(items, preferredDisplay: preferredDisplay, cancellation: cancellation))
                 }
-                var results: [MenuItem] = []
-                for display in displays {
-                    let positions = Self.hostedFrames(eligible, display: display)
-                    for item in eligible where !results.contains(where: { $0.id == item.id }) {
-                        guard let frame = positions[item.id] else { continue }
-                        var copy = item; copy.frame = frame; results.append(copy)
-                    }
-                }
-                continuation.resume(returning: results)
+            }
+        } onCancel: { cancellation.cancel() }
+    }
+    private static func visibleFrames(_ items: [MenuItem], preferredDisplay: CGRect?, cancellation: CaptureCancellation) -> [MenuItem] {
+        guard !cancellation.cancelled, AXIsProcessTrusted() else { return [] }
+        var ids = [CGDirectDisplayID](repeating: 0, count: 16), count: UInt32 = 0
+        guard CGGetActiveDisplayList(16, &ids, &count) == .success else { return [] }
+        let displays = ids.prefix(Int(count)).sorted { $0 == CGMainDisplayID() && $1 != CGMainDisplayID() }
+            .map { CGDisplayBounds($0) }.filter { preferredDisplay == nil || $0 == preferredDisplay }
+        // Confirm the app still exposes exactly one item; PID alone cannot disambiguate multiple buttons.
+        let eligible = items.filter {
+            guard !cancellation.cancelled, NSRunningApplication(processIdentifier: $0.pid)?.bundleIdentifier == $0.bundle else { return false }
+            let root = AXUIElementCreateApplication($0.pid); AXUIElementSetMessagingTimeout(root, 0.15)
+            let leaves = extras(root)
+            return leaves.count == 1 && CFEqual(leaves[0], $0.element)
+        }
+        guard !eligible.isEmpty else { return [] }
+        var results: [MenuItem] = []
+        for display in displays {
+            guard !cancellation.cancelled else { return [] }
+            let positions = hostedFrames(eligible, display: display)
+            for item in eligible where !results.contains(where: { $0.id == item.id }) {
+                guard let frame = positions[item.id] else { continue }
+                var copy = item; copy.frame = frame; results.append(copy)
             }
         }
+        return results
     }
     /// Reveals only the system overflow needed for already-allowed items.
     /// The app's visibility assertion decides which bundles may be shown.

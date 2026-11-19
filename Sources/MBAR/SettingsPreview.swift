@@ -14,11 +14,17 @@ import SwiftUI
             completion(nil)
             return NSObject()
         }, release: { _ in })
-        let model = AppModel(hiding: HidingService(runtime: runtime), iconLibrary: IconLibrary(directory: directory))
+        let defaults = UserDefaults(suiteName: directory.lastPathComponent)!
+        defer { defaults.removePersistentDomain(forName: directory.lastPathComponent) }
+        let model = AppModel(hiding: HidingService(runtime: runtime), iconLibrary: IconLibrary(directory: directory), defaults: defaults)
         let identifier = Bundle.main.bundleIdentifier ?? ""
         let noPermission = identifier.hasSuffix(".Permission")
         let activeWithoutSelection = identifier.hasSuffix(".ActiveEmpty")
-        let showShelf = identifier.hasSuffix(".Shelf")
+        let previewStyle = CommandLine.arguments.compactMap { argument -> ShelfStyle? in
+            guard argument.hasPrefix("--shelf-preview=") else { return nil }
+            return ShelfStyle(rawValue: String(argument.dropFirst("--shelf-preview=".count)))
+        }.first
+        let showShelf = identifier.hasSuffix(".Shelf") || previewStyle != nil
         model.trusted = !noPermission
         model.hideRequested = activeWithoutSelection
         model.policy = activeWithoutSelection ? ShelfPolicy() : ShelfPolicy(assignments: [
@@ -37,26 +43,38 @@ import SwiftUI
         } else {
             model.error = "需要辅助功能权限才能读取和打开菜单栏项目。"
         }
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: showShelf ? 180 : 620, height: showShelf ? 36 : 660),
-                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        if showShelf {
+            model.shelfStyle = previewStyle ?? .strip
+            if let choice = CommandLine.arguments.first(where: { $0.hasPrefix("--appearance-preset=") }) {
+                model.selectShelfPreset(String(choice.dropFirst("--appearance-preset=".count)))
+            }
+            let symbols = ["moon.stars.fill", "arrow.triangle.2.circlepath", "music.note", "calendar", "cloud.sun", "note.text"]
+            model.items = Array(model.items.prefix(examples.count))
+            model.policy = ShelfPolicy(assignments: Dictionary(uniqueKeysWithValues: examples.map { ($0.0, .automatic) }))
+            for (item, symbol) in zip(model.items, symbols) {
+                model.previews[item.id] = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+            }
+        }
+        let size = showShelf ? ShelfMetrics.size(style: model.shelfStyle, itemWidths: model.collected.map(model.previewWidth),
+                                                  available: CGSize(width: 550, height: 400), showsLock: true)
+                             : CGSize(width: 620, height: 660)
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+                              styleMask: showShelf ? [.borderless] : [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = showShelf ? "MBAR 下拉栏 · 开发预览" : "MBAR 设置 · 开发预览"
         window.isReleasedWhenClosed = false
         if identifier.hasSuffix(".Dark") { window.appearance = NSAppearance(named: .darkAqua) }
         if showShelf {
-            model.previews["preview.focus#0"] = NSImage(systemSymbolName: "moon.stars.fill", accessibilityDescription: nil)
-            let effect = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 180, height: 36))
-            effect.material = .popover
-            effect.blendingMode = .behindWindow
-            let host = NSHostingView(rootView: ShelfView(model: model, width: 180))
-            host.frame = effect.bounds
-            effect.addSubview(host)
-            window.contentView = effect
+            window.backgroundColor = .clear
+            window.isOpaque = false
+            let host = ShelfHostingView(rootView: ShelfView(model: model, width: size.width, height: size.height))
+            window.contentView = ShelfBackdrop(frame: NSRect(origin: .zero, size: size),
+                                               configuration: model.shelfAppearance, content: host)
         } else {
             window.contentView = NSHostingView(rootView: SettingsView(model: model))
         }
         window.center()
         window.makeKeyAndOrderFront(nil)
-        if showShelf, let host = window.contentView?.subviews.first {
+        if showShelf, let host = (window.contentView as? ShelfBackdrop)?.content {
             window.recalculateKeyViewLoop()
             window.makeFirstResponder(host)
         }

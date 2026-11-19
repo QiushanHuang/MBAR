@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 (unreleased)
+
+- The shelf can extend left, center itself or extend right below the entry. The appearance editor offers translucent, frosted, soft glass and Apple clear Liquid Glass materials, adjustable tint, translucent background opacity, seven built-in palettes and named personal presets. Existing glass preferences keep their original appearance.
+
+- Added labeled grid and list layouts alongside the compact strip. Settings and the entry’s context menu can place the shelf under the entry or against either side of its display.
+- Added directional keyboard navigation, visible pointer feedback and first-Tab entry across layouts. The lock and settings controls stay accessible when items scroll.
+- Added opt-in periodic updates for visible native menu items and an Accessibility speed-text adapter for Clash Verge Rev. Manual artwork takes priority and sampling ends when the shelf closes.
+- Corrected placement when macOS gives an overflowed status item an off-screen anchor.
+
 ## 0.6.0 - 2026-10-28
 
 ### Changed

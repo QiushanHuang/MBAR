@@ -105,39 +105,13 @@ struct LoadedMenuIcons {
                 } else { image = nil }
             }
             guard let image else { result.failures[item.id] = failure; continue }
-            // Use the exposed text once per opening. This is semantic data,
-            // not a promise to reproduce the app's custom drawing/layout.
-            if item.bundle == "io.github.clash-verge-rev.clash-verge-rev", item.title.contains("B/s") {
-                result.images[item.id] = Self.withStatusText(image, text: item.title)
-                result.sources[item.id] = "\(source ?? "原始菜单图标")；数值读取自本次辅助功能标题"
-            } else {
-                result.images[item.id] = image
-                result.sources[item.id] = source
-            }
+            result.images[item.id] = image
+            result.sources[item.id] = source
         }
         // Do not retain resources for exited/replaced applications indefinitely.
         let livePrefixes = items.map { "\($0.bundle):\($0.pid):" }
         cache = cache.filter { key, _ in livePrefixes.contains { key.hasPrefix($0) } }
         cacheSources = cacheSources.filter { cache[$0.key] != nil }
         return result
-    }
-
-    private static func withStatusText(_ icon: NSImage, text: String) -> NSImage {
-        let lines = text.split(separator: "|").prefix(2).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .medium), .foregroundColor: NSColor.black
-        ]
-        let width = ceil(lines.map { ($0 as NSString).size(withAttributes: attributes).width }.max() ?? 0)
-        let size = NSSize(width: icon.size.width + 4 + width, height: 24)
-        let output = NSImage(size: size, flipped: false) { _ in
-            icon.draw(in: NSRect(x: 0, y: (size.height - icon.size.height) / 2, width: icon.size.width, height: icon.size.height))
-            for (index, line) in lines.enumerated() {
-                let y: CGFloat = lines.count == 1 ? 6 : (index == 0 ? 12 : 1)
-                (line as NSString).draw(at: NSPoint(x: icon.size.width + 4, y: y), withAttributes: attributes)
-            }
-            return true
-        }
-        output.isTemplate = true
-        return output
     }
 }
