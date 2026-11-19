@@ -30,7 +30,7 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.7.0</string>
-<key>CFBundleVersion</key><string>17</string>
+<key>CFBundleVersion</key><string>19</string>
 <key>LSMinimumSystemVersion</key><string>27.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>

@@ -1,13 +1,13 @@
 # Changelog
 
-## 0.7.0 (unreleased)
+## 0.7.0 — 2026-11-20
 
-- The shelf can extend left, center itself or extend right below the entry. The appearance editor offers translucent, frosted, soft glass and Apple clear Liquid Glass materials, adjustable tint, translucent background opacity, seven built-in palettes and named personal presets. Existing glass preferences keep their original appearance.
+- Choose a compact strip, labeled grid or list. Dock the shelf at either side of the display or expand it left, right or centered under its menu-bar entry. Arrow keys navigate items and scroll them into view.
+- Choose from seven appearance presets or save your own. **桌面水晶** (Desktop Crystal) combines 35% frosting with 0% tint and native glass refraction at the edges. Frosting, tint and translucent background opacity can be adjusted independently where applicable.
+- Optionally refresh visible native icons while the shelf is open. Manual artwork takes priority, and Clash Verge Rev speed text can update when exposed through Accessibility.
+- Fixed off-screen placement when the menu-bar entry overflows and icons shifting to the lower left when switching glass materials.
 
-- Added labeled grid and list layouts alongside the compact strip. Settings and the entry’s context menu can place the shelf under the entry or against either side of its display.
-- Added directional keyboard navigation, visible pointer feedback and first-Tab entry across layouts. The lock and settings controls stay accessible when items scroll.
-- Added opt-in periodic updates for visible native menu items and an Accessibility speed-text adapter for Clash Verge Rev. Manual artwork takes priority and sampling ends when the shelf closes.
-- Corrected placement when macOS gives an overflowed status item an off-screen anchor.
+[0.7.0 release notes, upgrade and test details](docs/releases/v0.7.0.md)
 
 ## 0.6.0 - 2026-10-28
 
@@ -64,6 +64,15 @@ artwork, limited adapters and physical-display compatibility limits are document
 in the README. Local prototype versions before 0.4.0 were not GitHub releases.
 
 ## 中文
+
+### 0.7.0 — 2026-11-20
+
+- 新增网格和列表布局，可贴屏幕两侧停靠，或在菜单栏入口下方向左、居中、向右展开。方向键可移动焦点并滚动到相应项目。
+- 新增七款外观预设，可保存个人预设。「桌面水晶」默认磨砂 35%、着色 0%，圆角边缘保留原生折射。苹果液态玻璃可单独调磨砂，半透明材质可调背景不透明度。
+- 可在下拉栏打开期间刷新可见的原生图标，手选图标优先。Clash Verge Rev 提供辅助功能网速文字时可更新读数。
+- 修复入口处于菜单栏溢出区时的窗口定位，以及切换玻璃材质后图标偏向左下的问题。
+
+[0.7.0 更新说明、升级与验证](docs/releases/v0.7.0.md#中文)
 
 ### 0.6.0 — 2026-10-28
 

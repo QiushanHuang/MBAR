@@ -21,28 +21,37 @@ public struct ShelfTint: Codable, Equatable, Sendable {
 }
 
 public struct ShelfAppearance: Codable, Equatable, Sendable {
+    fileprivate enum CodingKeys: String, CodingKey { case material, tint, intensity, opacity, frostAmount }
+    public static let defaultFrostAmount = 0.35
     public var material: ShelfMaterial
     public var tint: ShelfTint
     public var intensity: Double
     public var opacity: Double
+    public var frostAmount: Double
 
-    public init(material: ShelfMaterial, tint: ShelfTint, intensity: Double, opacity: Double = 0.74) {
+    public init(material: ShelfMaterial, tint: ShelfTint, intensity: Double, opacity: Double = 0.74,
+                frostAmount: Double = Self.defaultFrostAmount) {
         self.material = material
         self.tint = tint
         self.intensity = ShelfTint.channel(intensity)
         self.opacity = opacity.isFinite ? min(1, max(0.25, opacity)) : 0.74
+        self.frostAmount = ShelfTint.channel(frostAmount)
     }
 
     public init(from decoder: Decoder) throws {
         let fields = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(material: try fields.decode(ShelfMaterial.self, forKey: .material),
+        let material = try fields.decode(ShelfMaterial.self, forKey: .material)
+        self.init(material: material,
                   tint: try fields.decode(ShelfTint.self, forKey: .tint),
                   intensity: try fields.decode(Double.self, forKey: .intensity),
-                  opacity: try fields.decodeIfPresent(Double.self, forKey: .opacity) ?? 0.74)
+                  opacity: try fields.decodeIfPresent(Double.self, forKey: .opacity) ?? 0.74,
+                  frostAmount: try fields.decodeIfPresent(Double.self, forKey: .frostAmount)
+                      ?? (material == .appleGlass ? 0 : Self.defaultFrostAmount))
     }
 
     fileprivate var normalized: Self {
-        .init(material: material, tint: .init(red: tint.red, green: tint.green, blue: tint.blue), intensity: intensity, opacity: opacity)
+        .init(material: material, tint: .init(red: tint.red, green: tint.green, blue: tint.blue),
+              intensity: intensity, opacity: opacity, frostAmount: frostAmount)
     }
 }
 
@@ -91,6 +100,14 @@ public struct ShelfAppearancePreferences: Codable, Equatable {
            let selected = presets.first(where: { $0.id == id }) {
             selectedID = selected.id
             appearance = try fields.decodeIfPresent(ShelfAppearance.self, forKey: .appearance)?.normalized ?? selected.appearance
+            // Only the untouched old factory preset follows the new optical tuning.
+            // A saved copy, modified variation or explicitly selected 0% stays clear.
+            if selected.id == "apple-glass", appearance.frostAmount == 0,
+               try !fields.nestedContainer(keyedBy: ShelfAppearance.CodingKeys.self, forKey: .appearance).contains(.frostAmount) {
+                var previousFactory = selected.appearance
+                previousFactory.frostAmount = 0
+                if appearance == previousFactory { appearance = selected.appearance }
+            }
         }
     }
 

@@ -44,5 +44,13 @@ final class ShelfAppearanceEditorTests: XCTestCase {
         model.selectShelfPreset("lagoon")
         layout()
         XCTAssertEqual(slider.doubleValue, 0.65, accuracy: 0.001)
+        XCTAssertFalse(sliders(host).contains { $0.accessibilityLabel() == "磨砂强度" })
+        model.selectShelfPreset("apple-glass")
+        layout()
+        let frost = try XCTUnwrap(sliders(host).first { $0.accessibilityLabel() == "磨砂强度" })
+        XCTAssertEqual(frost.doubleValue, 0.35, accuracy: 0.001)
+        frost.keyDown(with: right)
+        XCTAssertEqual(model.shelfAppearance.frostAmount, 0.36, accuracy: 0.001)
+        XCTAssertEqual(model.shelfAppearance.intensity, 0)
     }
 }

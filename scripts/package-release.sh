@@ -8,14 +8,21 @@ if [[ -e "$release_dir" ]]; then
   exit 1
 fi
 mkdir -p "$release_dir/staging"
-MBAR_APP_DIR="$release_dir/staging/MBAR.app" ./scripts/build-app.sh
+if [[ -n "${2:-}" ]]; then
+  # Ship the exact application bundle that was approved and tested locally.
+  codesign --verify --strict "$2"
+  [[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$2/Contents/Info.plist")" == "local.qiushan.MBAR" ]]
+  ditto "$2" "$release_dir/staging/MBAR.app"
+else
+  MBAR_APP_DIR="$release_dir/staging/MBAR.app" ./scripts/build-app.sh
+fi
 version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$release_dir/staging/MBAR.app/Contents/Info.plist")
 arch=$(uname -m)
 base="MBAR-${version}-macos-${arch}"
 codesign --verify --strict "$release_dir/staging/MBAR.app"
 cp README.md CONTRIBUTORS.md CONTRIBUTING.md CHANGELOG.md "$release_dir/staging/"
 mkdir -p "$release_dir/staging/docs/images" "$release_dir/staging/docs/releases"
-cp docs/images/mbar-icon.png docs/images/README.md "$release_dir/staging/docs/images/"
+cp docs/images/*.png docs/images/README.md "$release_dir/staging/docs/images/"
 cp docs/releases/v*.md "$release_dir/staging/docs/releases/"
 cp docs/icon-extraction.md docs/menu-bar-lifecycle.md "$release_dir/staging/docs/"
 cp LICENSE THIRD_PARTY_NOTICES.md "$release_dir/staging/"

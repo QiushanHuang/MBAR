@@ -4,6 +4,31 @@ import XCTest
 @testable import MBAR
 
 final class ShelfBackdropTests: XCTestCase {
+    @MainActor func testClearGlassSuppressesOnlyTheFloatingShelfsWindowShadow() throws {
+        _ = NSApplication.shared
+        let frame = NSRect(x: 0, y: 0, width: 220, height: 40)
+        let clear = try XCTUnwrap(ShelfAppearancePreset.builtIns.first { $0.id == "apple-glass" }).appearance
+        let frost = try XCTUnwrap(ShelfAppearancePreset.builtIns.first { $0.id == "frost" }).appearance
+        let panel = ShelfPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.hasShadow = true
+        let backdrop = ShelfBackdrop(frame: frame, configuration: clear, content: NSView())
+        panel.contentView = backdrop
+        if #available(macOS 26, *), !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+            XCTAssertFalse(panel.hasShadow)
+            backdrop.apply(frost)
+            XCTAssertTrue(panel.hasShadow)
+            backdrop.apply(clear)
+            XCTAssertFalse(panel.hasShadow)
+        }
+        let preview = ShelfBackdrop(frame: frame, configuration: clear, content: NSView(), blendingMode: .withinWindow)
+        let editor = NSWindow(contentRect: frame, styleMask: .titled, backing: .buffered, defer: false)
+        editor.hasShadow = true
+        editor.contentView = preview
+        preview.apply(frost)
+        preview.apply(clear)
+        XCTAssertTrue(editor.hasShadow)
+    }
+
     @MainActor func testTranslucentOpacityChangesOnlyTheBackdrop() throws {
         _ = NSApplication.shared
         let content = NSView()

@@ -220,6 +220,9 @@ struct ShelfAppearanceSettings: View {
                 }
             }
             adjustment("着色强度", value: \.intensity, range: 0...1)
+            if current.material == .appleGlass {
+                adjustment("磨砂强度", value: \.frostAmount, range: 0...1)
+            }
             if current.material == .translucent {
                 adjustment("背景不透明度", value: \.opacity, range: 0.25...1)
             }

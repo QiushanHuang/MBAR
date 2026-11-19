@@ -21,23 +21,22 @@ MBAR gathers menu-bar icons into a configurable dropdown on macOS 27.
 Choose which apps stay visible, which go into the shelf, and which remain hidden.
 Open the shelf, then click a tool to reach its original menu.
 
-[**Download v0.6.0**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.6.0) ·
+[**Download v0.7.0**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.7.0) ·
 [Install](#install) · [Choose an icon](#choose-an-icon) ·
-[What's new](docs/releases/v0.6.0.md) · [Report an issue](https://github.com/QiushanHuang/MBAR/issues)
+[What's new](docs/releases/v0.7.0.md) · [Report an issue](https://github.com/QiushanHuang/MBAR/issues)
 
 ## What MBAR does
 
-- The development build offers a compact strip, a labeled grid and a list. Under the MBAR entry, extend it left, center it on the entry, or extend it right. Screen-edge docking is also available.
-- Choose a translucent or frosted surface, soft glass, or Apple’s clear Liquid Glass in **外观…**. Choose **桌面水晶** for untinted clear glass; presets are also accessible directly from the MBAR entry’s context menu. Adjust tint, color intensity and the opacity of a translucent background, then save a named preset. Seven built-in palettes are included.
+- Choose a compact icon strip, labeled grid or list. Position the shelf at either screen edge, or under the MBAR entry with leftward, centered or rightward expansion.
+- Pick one of seven appearance presets or save your own. For Apple clear Liquid Glass, right-click the MBAR entry and choose **下拉栏外观预设 → 桌面水晶**. It starts at 35% frosting and 0% tint, with a soft center and refractive edges. In **设置 → 下拉栏 → 外观…**, adjust frosting separately from tint, or switch to soft glass, frosted or translucent material.
 - Reads original menu-icon resources from supported apps. Automatic discovery also searches ordinary images, compiled `Assets.car` catalogs and Electron ASAR archives.
 - Lets you compare uncertain candidates, import your own image, or capture a currently visible native icon.
 - Keeps the shelf open with an optional lock, forwards left/right clicks, and provides a Show all recovery action.
 
-**v0.6.0 simplifies Settings and icon selection, improves keyboard access, and strengthens menu-bar recovery after system transitions.**
-The UI is currently in Simplified Chinese; English instructions below use the actual button labels.
+**v0.7.0 (build 19)** adds shelf layouts, placement, glass presets and optional live icon refresh. The UI is in Simplified Chinese. Instructions below use the button labels shown in the app.
 
 Hiding uses a private macOS 27 interface and remains experimental. Saved artwork is static.
-In the development build, **刷新可见的原生图标** enables periodic updates while the shelf is open.
+Enable **刷新可见的原生图标** in Settings for periodic updates while the shelf is open.
 Visible items can show their current native glyph. Hidden items use saved artwork, or current
 speed text when a supported Clash Verge Rev installation exposes it. Manual artwork takes priority.
 
@@ -48,8 +47,8 @@ speed text when a supported Clash Verge Rev installation exposes it. Manual artw
 Requires **macOS 27 and an Apple Silicon Mac**. Downloads are ad-hoc signed,
 without Developer ID signing or Apple notarization. There is no Intel build.
 
-1. Download `MBAR-0.6.0-macos-arm64.dmg` from [Releases](https://github.com/QiushanHuang/MBAR/releases/tag/v0.6.0).
-2. Open the DMG and drag **MBAR** to **Applications**, then eject it. The ZIP is an alternative: extract it and move `MBAR.app` to Applications.
+1. Download the [DMG](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.0/MBAR-0.7.0-macos-arm64.dmg) or [ZIP](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.0/MBAR-0.7.0-macos-arm64.zip). Quit the running copy before upgrading.
+2. Open the DMG and drag **MBAR** to **Applications**, then eject it. If you used the ZIP, extract it and move `MBAR.app` to Applications.
 3. Launch `/Applications/MBAR.app`. MBAR runs in the menu bar, without a Dock icon.
 4. If macOS blocks opening, review the download and use **System Settings → Privacy & Security → Open Anyway**. Keep Gatekeeper enabled.
 5. Click **打开辅助功能设置**, enable MBAR, return and click **刷新**. On macOS 27 the system pane may be called **Device Control and Data Access**. If an old MBAR entry is on but the updated app still lacks access, remove that entry, add `/Applications/MBAR.app` again and restart MBAR.
@@ -57,10 +56,10 @@ without Developer ID signing or Apple notarization. There is no Intel build.
 Keep target apps enabled in **System Settings → Menu Bar → Allow in Menu Bar**.
 Turning them off there removes their menu items instead of collecting them in MBAR.
 
-To verify a downloaded archive, put it beside the release's `SHA256SUMS.txt` and compare its digest:
+To verify the DMG, compare the result of the following command with its entry in the [release checksums](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.0/SHA256SUMS.txt).
 
 ```sh
-shasum -a 256 MBAR-0.6.0-macos-arm64.dmg
+shasum -a 256 MBAR-0.7.0-macos-arm64.dmg
 ```
 
 ## Start here
@@ -141,7 +140,7 @@ See [extraction methods, evidence and limits](docs/icon-extraction.md) for the t
 | Open the original menu | Left-click an available shelf icon |
 | Forward a right-click | Right-click the icon; behavior depends on the target app |
 | Open Settings | Shelf gear, or right-click MBAR → 设置… |
-| Change layout or position (development build) | Right-click the MBAR entry or use the segmented controls in Settings |
+| Change layout or position | Right-click the MBAR entry or use the segmented controls in Settings |
 | Navigate without a mouse | Tab to enter, use arrow keys to move, then Return or Space to select |
 | Keep the shelf open | Click the lock; click again to unlock |
 | Close an unlocked shelf | Click outside, press Escape, or click MBAR again |
@@ -163,7 +162,7 @@ is not included in MBAR's downloads. There is no account, telemetry or network b
 
 | Data | Location |
 | --- | --- |
-| Categories, hiding preference, recent diagnostics | macOS UserDefaults, `local.qiushan.MBAR` |
+| Categories, appearance presets, placement, hiding preferences and recent diagnostics | macOS UserDefaults, `local.qiushan.MBAR` |
 | Saved icon mappings and one-step undo | `~/Library/Application Support/MBAR/IconMappings.json` |
 | Imported images and confirmed native crops | `~/Library/Application Support/MBAR/ImportedIcons/` |
 | Unconfirmed candidates | Memory only |
@@ -200,7 +199,7 @@ Use macOS 27 with Xcode's Swift 6 toolchain. Release validation uses Swift 6.4 a
 ```sh
 git clone https://github.com/QiushanHuang/MBAR.git
 cd MBAR
-git checkout v0.6.0
+git checkout v0.7.0
 swift test
 swift test -c release
 ./scripts/build-app.sh
@@ -218,7 +217,7 @@ Terminal permission results do not prove that the GUI app is authorized. Unit te
 parsing and lifecycle behavior; installed-app capture and physical-display checks are separate.
 
 [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) ·
-[Release notes and validation](docs/releases/v0.6.0.md)
+[Release notes and validation](docs/releases/v0.7.0.md)
 
 Created and maintained by **[Qiushan (QiushanHuang)](https://github.com/QiushanHuang)**.
 [Contributors](CONTRIBUTORS.md) · [GPL-3.0](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
@@ -234,7 +233,7 @@ Created and maintained by **[Qiushan (QiushanHuang)](https://github.com/QiushanH
 <p align="center">
   <img src="docs/images/mbar-icon.png" alt="MBAR 菜单栏收纳工具" width="144">
 </p>
-<p align="center"><strong>常用菜单栏工具，一排收好。</strong></p>
+<p align="center"><strong>常用菜单栏工具，集中收纳。</strong></p>
 <p align="center">
   <a href="#english"><img src="https://img.shields.io/badge/Language-English-24292f" alt="English"></a>
   <a href="#中文"><img src="https://img.shields.io/badge/语言-简体中文-1677ff" alt="简体中文"></a>
@@ -243,21 +242,21 @@ Created and maintained by **[Qiushan (QiushanHuang)](https://github.com/QiushanH
 MBAR 将 macOS 27 的菜单栏图标收进可调整位置和样式的下拉栏。
 你可以决定哪些应用常驻、哪些收入下拉栏、哪些一直隐藏，再从下拉栏打开它们的原菜单。
 
-[**下载 v0.6.0**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.6.0) ·
-[安装](#安装) · [选择图标](#选择图标) · [更新说明](docs/releases/v0.6.0.md#中文) ·
+[**下载 v0.7.0**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.7.0) ·
+[安装](#安装) · [选择图标](#选择图标) · [更新说明](docs/releases/v0.7.0.md#中文) ·
 [反馈问题](https://github.com/QiushanHuang/MBAR/issues)
 
 ### 主要功能
 
-- 开发版提供图标条、网格和列表。在「入口下方」可选向左、居中或向右展开，也可贴当前显示器的左侧或右侧。
-- 在设置的「下拉栏 → 外观…」可选择半透明、毛玻璃、柔光玻璃或苹果液态玻璃。选「桌面水晶」即可使用原生清透玻璃，也可直接从入口的右键菜单「下拉栏外观预设」切换。「桌面水晶」使用 AppKit 的清透液态玻璃，圆角边缘保留原生效果，中央透出更多壁纸细节。原有玻璃效果保存在「柔光原色」和「海盐蓝」中。七款内置预设均可调整材质、颜色和着色强度，半透明材质还可以调节背景不透明度。调整后可另存为个人预设。系统开启「降低透明度」时，面板会使用实色背景。
+- 可选择图标条、网格和列表。在「入口下方」可选向左、居中或向右展开，也可贴当前显示器的左侧或右侧。
+- 七款外观预设支持自定义。右键 MBAR 入口，选择 **下拉栏外观预设 → 桌面水晶**，即可使用苹果清透液态玻璃。默认磨砂 35%、着色 0%，中央轻微柔化背景，圆角边缘产生折射。在 **设置 → 下拉栏 → 外观…** 可独立调整磨砂和着色，切换半透明、毛玻璃或柔光玻璃，并另存为个人预设。
 - 读取已适配应用的原始菜单图标，也会自动搜索普通图片、`Assets.car` 图像资源库和 Electron ASAR 归档。
 - 候选不明确时手动选择，也支持导入图片、读取当前可见的原生图标。
 - 可锁定下拉栏，转发左右键操作，并随时显示全部图标、暂停隐藏。
 
-**v0.6.0 简化了设置与图标选择，改进键盘操作和系统变化后的菜单栏恢复。**
+**v0.7.0（build 19）** 新增下拉栏布局、位置选择、玻璃预设和可选的原生图标刷新。
 界面目前为简体中文。隐藏依赖 macOS 27 私有接口，仍属实验功能。
-保存的图标和快照是静态的。开发版可在设置中开启「刷新可见的原生图标」。
+保存的图标和快照是静态的。可在设置中开启「刷新可见的原生图标」。
 下拉栏打开时定期采样当前显示器上的可见项目。隐藏项目使用配置图标，Clash Verge Rev 提供网速文字时可更新数值。手选和导入的图标优先。
 
 <a id="安装"></a>
@@ -267,7 +266,7 @@ MBAR 将 macOS 27 的菜单栏图标收进可调整位置和样式的下拉栏�
 需要 **macOS 27 和 Apple Silicon Mac**。下载包采用 ad-hoc 签名，
 未经 Developer ID 签名或 Apple 公证，未提供 Intel 版本。
 
-1. 在[发行页](https://github.com/QiushanHuang/MBAR/releases/tag/v0.6.0)下载 `MBAR-0.6.0-macos-arm64.dmg`。
+1. 下载 [DMG 安装包](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.0/MBAR-0.7.0-macos-arm64.dmg) 或 [ZIP 压缩包](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.0/MBAR-0.7.0-macos-arm64.zip)。如果正在升级，先退出旧版 MBAR。
 2. 打开 DMG，将 **MBAR** 拖到 **Applications（应用程序）**，然后推出映像。也可解压 ZIP 后移动 `MBAR.app`。
 3. 从 `/Applications/MBAR.app` 启动。MBAR 只驻留菜单栏，不显示 Dock 图标。
 4. 若 macOS 阻止打开，确认下载来源后，在**系统设置 → 隐私与安全性 → 仍要打开**中放行，保持 Gatekeeper 开启。
@@ -275,10 +274,10 @@ MBAR 将 macOS 27 的菜单栏图标收进可调整位置和样式的下拉栏�
 
 请在系统的**菜单栏 → 允许在菜单栏中**保持目标应用开启；在那里关闭会移除菜单项目，而不是由 MBAR 收纳。
 
-发行页提供 `SHA256SUMS.txt`，可将以下结果与其中对应行核对：
+校验 DMG 时，将以下命令的输出与[发行校验文件](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.0/SHA256SUMS.txt)中的对应行核对。
 
 ```sh
-shasum -a 256 MBAR-0.6.0-macos-arm64.dmg
+shasum -a 256 MBAR-0.7.0-macos-arm64.dmg
 ```
 
 ### 快速开始
@@ -336,7 +335,7 @@ shasum -a 256 MBAR-0.6.0-macos-arm64.dmg
 
 已有专用适配覆盖 KeepingYouAwake、MonitorControl、Tailscale、BuhoNTFS Menu、UU Remote、
 Codex、ScreenPilot、Docker Desktop、绿联 NAS、Macs Fan Control 和 Clash Verge Rev。
-上游资源改变仍可能需要更新适配。Clash 提供的网速文字会在展开时读取，开发版打开原生图标刷新后还可持续更新。
+上游资源改变仍可能需要更新适配。Clash 提供的网速文字会在展开时读取，开启原生图标刷新后还可持续更新。
 
 自动发现也会处理列表之外的应用。在同一批 20 个运行中应用的本地对照中，
 找到至少一个候选的应用从 **4 个增加到 15 个**。这是候选覆盖率，不代表 15 个均自动匹配成功，
@@ -353,7 +352,7 @@ Codex、ScreenPilot、Docker Desktop、绿联 NAS、Macs Fan Control 和 Clash V
 | 打开原应用菜单 | 左键点击可用图标 |
 | 转发右键 | 右键点击图标，实际行为由目标应用决定 |
 | 打开设置 | 下拉栏齿轮，或右键 MBAR → 设置… |
-| 切换样式或位置（开发版） | 右键点击 MBAR 入口，或在设置的「下拉栏」区域选择 |
+| 切换样式或位置 | 右键点击 MBAR 入口，或在设置的「下拉栏」区域选择 |
 | 使用键盘 | Tab 进入，方向键移动，回车或空格启动当前项目 |
 | 保持下拉栏打开 | 点击锁定按钮，再次点击解锁 |
 | 收起未锁定的下拉栏 | 点击外部、按 Escape 或再次点击 MBAR |
@@ -372,7 +371,7 @@ Codex、ScreenPilot、Docker Desktop、绿联 NAS、Macs Fan Control 和 Clash V
 
 | 数据 | 位置 |
 | --- | --- |
-| 分类、隐藏偏好、最近诊断 | macOS UserDefaults，`local.qiushan.MBAR` |
+| 分类、外观预设、位置、隐藏偏好与最近诊断 | macOS UserDefaults，`local.qiushan.MBAR` |
 | 图标映射与单步撤销 | `~/Library/Application Support/MBAR/IconMappings.json` |
 | 导入图片与确认的原生裁切图 | `~/Library/Application Support/MBAR/ImportedIcons/` |
 | 未确认的候选 | 仅内存 |
@@ -407,7 +406,7 @@ Codex、ScreenPilot、Docker Desktop、绿联 NAS、Macs Fan Control 和 Clash V
 ```sh
 git clone https://github.com/QiushanHuang/MBAR.git
 cd MBAR
-git checkout v0.6.0
+git checkout v0.7.0
 swift test
 swift test -c release
 ./scripts/build-app.sh
@@ -421,7 +420,7 @@ swift test -c release
 诊断加上 `--items` 会输出应用标识和坐标，分享前请检查内容。终端权限不代表 GUI 应用已授权。
 单元测试覆盖策略、解析与生命周期；安装版采集和多屏实机验收分别记录。
 
-[贡献指南](CONTRIBUTING.md) · [更新记录](CHANGELOG.md) · [版本说明与验证](docs/releases/v0.6.0.md#中文)
+[贡献指南](CONTRIBUTING.md) · [更新记录](CHANGELOG.md) · [版本说明与验证](docs/releases/v0.7.0.md#中文)
 
 作者与维护者：**[Qiushan（QiushanHuang）](https://github.com/QiushanHuang)**。
 [贡献署名](CONTRIBUTORS.md) · [GPL-3.0 许可](LICENSE) · [第三方声明](THIRD_PARTY_NOTICES.md)
