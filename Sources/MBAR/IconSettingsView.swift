@@ -21,9 +21,9 @@ struct IconSettingsView: View {
     private var entry: IconEntry { library.entry(bundle) }
     private var hasDraft: Bool { selected != nil || imported != nil || native != nil }
     private var preview: NSImage? {
-        if let native { return IconLibrary.image(native.prepared.image.png, mode: mode) }
-        if let imported { return IconLibrary.image(imported.png, mode: mode) }
-        if let selected { return IconLibrary.image(selected.image.png, mode: mode) }
+        if let native { return IconLibrary.image(native.prepared.image.png, mode: mode, pointSize: native.prepared.pointSize) }
+        if let imported { return IconLibrary.image(imported.png, mode: mode, pointSize: imported.resourcePointSize) }
+        if let selected { return IconLibrary.image(selected.image.png, mode: mode, pointSize: selected.image.resourcePointSize) }
         return entry.image
     }
     var body: some View {
@@ -85,7 +85,7 @@ struct IconSettingsView: View {
                                 selected = candidate; imported = nil; native = nil; mode = candidate.suggestedMode; message = nil
                             } label: {
                                 VStack(spacing: 8) {
-                                    if let image = IconLibrary.image(candidate.image.png, mode: candidate.suggestedMode) {
+                                    if let image = IconLibrary.image(candidate.image.png, mode: candidate.suggestedMode, pointSize: candidate.image.resourcePointSize) {
                                         Image(nsImage: image).resizable().scaledToFit().frame(width: 36, height: 28)
                                     }
                                     Text(URL(fileURLWithPath: candidate.evidence.path).lastPathComponent)

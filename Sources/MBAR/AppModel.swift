@@ -28,6 +28,24 @@ import MBARCore
     @Published var snapshotDate: Date?
     @Published var iconSources: [String: String] = [:]
     @Published private(set) var shelfLock: ShelfLockPolicy
+    @Published private var storedIconScale: Double
+    var shelfIconScale: Double {
+        get { storedIconScale }
+        set {
+            let scale = ShelfIconScale.normalized(newValue)
+            guard scale != storedIconScale else { return }
+            storedIconScale = scale
+            defaults.set(scale, forKey: "shelfIconScale")
+            onShelfContentChanged?()
+        }
+    }
+    @Published var shelfToolsSide: ShelfToolsSide {
+        didSet {
+            guard oldValue != shelfToolsSide else { return }
+            defaults.set(shelfToolsSide.rawValue, forKey: "shelfToolsSide")
+            onShelfContentChanged?()
+        }
+    }
     @Published var shelfStyle: ShelfStyle {
         didSet {
             guard oldValue != shelfStyle else { return }
@@ -105,7 +123,7 @@ import MBARCore
             .sorted { ($0.items.first?.name ?? "").localizedStandardCompare($1.items.first?.name ?? "") == .orderedAscending }
     }
     var collected: [MenuItem] {
-        items.filter { policy.automatic.contains($0.bundle) }
+        items.filter { policy.category($0.bundle) == .automatic }
             .sorted { a, b in
                 ShelfOrderKey(name: a.name, id: a.id) < ShelfOrderKey(name: b.name, id: b.id)
             }
@@ -124,6 +142,8 @@ import MBARCore
         appearancePreferences = defaults.data(forKey: "shelfAppearancePreferences").flatMap {
             try? JSONDecoder().decode(ShelfAppearancePreferences.self, from: $0)
         } ?? ShelfAppearancePreferences()
+        storedIconScale = ShelfIconScale.normalized((defaults.object(forKey: "shelfIconScale") as? NSNumber)?.doubleValue ?? 1)
+        shelfToolsSide = defaults.string(forKey: "shelfToolsSide").flatMap(ShelfToolsSide.init(rawValue:)) ?? .right
         shelfStyle = defaults.string(forKey: "shelfStyle").flatMap(ShelfStyle.init(rawValue:)) ?? .strip
         shelfPlacement = defaults.string(forKey: "shelfPlacement").flatMap(ShelfPlacement.init(rawValue:)) ?? .anchor
         shelfAlignment = defaults.string(forKey: "shelfAlignment").flatMap(ShelfAlignment.init(rawValue:)) ?? .left
@@ -397,11 +417,19 @@ import MBARCore
     }
     func replaceLiveImages(_ samples: [String: ShelfLiveImage]) {
         guard !samples.isEmpty || !liveImages.isEmpty else { return }
-        let oldWidths = collected.map { previewWidth(for: $0) }
+        let items = collected
+        let previousSizes = items.map(shelfGlyphSize)
         liveImages = samples
-        if oldWidths != collected.map({ previewWidth(for: $0) }) { onShelfContentChanged?() }
+        if previousSizes != items.map(shelfGlyphSize) { onShelfContentChanged?() }
     }
-    func previewWidth(for item: MenuItem) -> CGFloat { ShelfMetrics.itemWidth(shelfImage(for: item)?.size ?? item.frame?.size) }
+    func shelfGlyphSize(for item: MenuItem) -> CGSize {
+        ShelfMetrics.glyphSize(shelfImage(for: item)?.size, scale: shelfIconScale)
+    }
+    var shelfMaxGlyphHeight: CGFloat { collected.map { shelfGlyphSize(for: $0).height }.max() ?? 0 }
+
+    func previewWidth(for item: MenuItem) -> CGFloat {
+        ShelfMetrics.itemWidth(shelfImage(for: item)?.size, scale: shelfIconScale)
+    }
     func openItem(_ item: MenuItem, right: Bool, fromSettings: Bool = false) {
         guard fromSettings || policy.category(item.bundle) == .automatic else { return }
         guard !hiding.suspended else { error = "系统菜单栏正在恢复，请稍后再打开菜单。"; return }

@@ -18,7 +18,12 @@ final class NativeSnapshotTests: XCTestCase {
         for item in selected {
             let prepared = try await NativeIconCapture.capture(item)
             XCTAssertGreaterThan(prepared.image.png.count, 0)
-            print("NATIVE_PROBE \(item.bundle) \(prepared.image.width)x\(prepared.image.height) \(prepared.mode.rawValue)")
+            let points = try XCTUnwrap(prepared.pointSize)
+            let image = try XCTUnwrap(IconLibrary.image(prepared.image.png, mode: prepared.mode, pointSize: points))
+            let displayed = ShelfMetrics.glyphSize(image.size)
+            XCTAssertEqual(image.size.width, points.width, accuracy: 0.1)
+            XCTAssertEqual(image.size.height, points.height, accuracy: 0.1)
+            print("NATIVE_PROBE \(item.bundle) pixels=\(prepared.image.width)x\(prepared.image.height) points=\(points) shelf@100%=\(displayed) \(prepared.mode.rawValue)")
         }
     }
     /// The named local fixture must alternate a tall glyph and a wide glyph at a fixed item position.
@@ -56,13 +61,32 @@ final class NativeSnapshotTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(seen.count, 2)
         XCTAssertGreaterThanOrEqual(transitions, 2)
     }
+    @MainActor func testLegacySnapshotWithoutDisplayScaleKeepsAspectAtMenuReferenceSize() throws {
+        let app = IconAppIdentity(bundleID: "test", path: "/test", version: "1", shortVersion: "1")
+        let old = IconMapping(identity: app, locator: .imported("snapshot.png"), digest: "fixture",
+                              mode: .original, origin: .nativeSnapshot)
+        let encoded = try JSONEncoder().encode(old)
+        let fields = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        XCTAssertNil(fields["pointSize"])
+        let restored = try JSONDecoder().decode(IconMapping.self, from: encoded)
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 80, pixelsHigh: 20,
+                                                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                                    colorSpaceName: .deviceRGB, bytesPerRow: 320, bitsPerPixel: 32))
+        let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        let image = try XCTUnwrap(IconLibrary.image(png, mode: restored.mode, pointSize: restored.pointSize))
+        XCTAssertEqual(image.size, CGSize(width: 72, height: 18))
+        let wrongBox = try XCTUnwrap(IconLibrary.image(png, mode: .original, pointSize: CGSize(width: 8, height: 18)))
+        XCTAssertEqual(wrongBox.size, CGSize(width: 8, height: 2))
+    }
+
     @MainActor func testNativeSnapshotPersistsAndBecomesStaleAfterAppUpdate() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         let fixture = IconLibraryTests(), app = try fixture.fixture(root), library = IconLibrary(directory: root.appendingPathComponent("store"))
         library.request(app); try await fixture.settle(library)
         let data = fixture.png(.white), cg = NSBitmapImageRep(data: data)!.cgImage!
-        let prepared = try XCTUnwrap(NativeIconQuality.prepare(cg))
+        let capturedPoints = CGSize(width: CGFloat(cg.width) / 2, height: CGFloat(cg.height) / 2)
+        let prepared = try XCTUnwrap(NativeIconQuality.prepare(cg, sourcePointSize: capturedPoints))
         let preview = NativeIconPreview(prepared: prepared, identity: app.identity, pid: app.pid, capturedAt: Date())
         try library.saveNative(preview, mode: .template, bundle: app.bundle)
         try await fixture.settle(library)
@@ -70,6 +94,8 @@ final class NativeSnapshotTests: XCTestCase {
         let restarted = IconLibrary(directory: root.appendingPathComponent("store"))
         restarted.request(app); try await fixture.settle(restarted)
         XCTAssertEqual(restarted.entry(app.bundle).state, .nativeSnapshot)
+        XCTAssertEqual(restarted.entry(app.bundle).mapping?.pointSize, prepared.pointSize)
+        XCTAssertEqual(restarted.entry(app.bundle).image?.size, prepared.pointSize)
         restarted.request(try fixture.fixture(root, version: "2")); try await fixture.settle(restarted)
         XCTAssertEqual(restarted.entry(app.bundle).state, .stale)
         XCTAssertThrowsError(try restarted.saveNative(preview, mode: .template, bundle: app.bundle))

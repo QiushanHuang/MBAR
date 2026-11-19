@@ -241,7 +241,7 @@ final class ShelfPanel: NSPanel {
     private func shelfFrame(anchor: CGRect, screen: NSScreen) -> CGRect {
         let bounds = screen.visibleFrame
         let size = ShelfMetrics.size(style: model.shelfStyle, itemWidths: model.collected.map(model.previewWidth),
-                                     available: bounds.insetBy(dx: 8, dy: 8).size, showsLock: model.shelfLock.showsButton)
+                                     available: bounds.insetBy(dx: 8, dy: 8).size, showsLock: model.shelfLock.showsButton, scale: model.shelfIconScale, tallestGlyphHeight: model.shelfMaxGlyphHeight)
         return PanelLayout.frame(anchor: anchor, screen: bounds, requested: size,
                                  placement: model.shelfPlacement, alignment: model.shelfAlignment)
     }

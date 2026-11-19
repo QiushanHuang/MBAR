@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 — 2026-11-20
+
+- Resize shelf app icons from 70% to 150%. At 100%, captured artwork uses its measured point dimensions; artwork without a known native size uses a proportional menu-sized fallback.
+- Place the lock and Settings controls on the left or right. The strip, grid and list reserve space for the artwork and keep the controls accessible as items scroll.
+- Improved contrast for monochrome and full-color icons on Apple clear glass, including artwork with both light and dark details.
+
 ## 0.7.0 — 2026-11-20
 
 - Choose a compact strip, labeled grid or list. Dock the shelf at either side of the display or expand it left, right or centered under its menu-bar entry. Arrow keys navigate items and scroll them into view.
@@ -64,6 +70,12 @@ artwork, limited adapters and physical-display compatibility limits are document
 in the README. Local prototype versions before 0.4.0 were not GitHub releases.
 
 ## 中文
+
+### 0.7.1 — 2026-11-20
+
+- 在设置中将下拉栏应用图标调至 70%–150%，一键恢复 100%。原生快照按实测点尺寸显示，缺少原生尺寸的素材按比例适配。
+- 锁定和设置按钮可以一起靠左或靠右；图标放大时，下拉栏会为它们预留空间。
+- 改进苹果液态玻璃上单色、双色和彩色图标的对比度。
 
 ### 0.7.0 — 2026-11-20
 

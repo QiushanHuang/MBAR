@@ -109,6 +109,40 @@ final class ShelfFocusTests: XCTestCase {
             last.keyDown(with: try keyEvent(window: window, keyCode: 36))
             XCTAssertEqual(model.iconSettingsBundle, "App 25")
             model.iconSettingsBundle = nil
+
+            model.shelfToolsSide = .left
+            host.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+            let reordered = shelfButtons(in: host)
+            let leftLock = try XCTUnwrap(reordered.first { $0.accessibilityLabel() == "锁定下拉栏" })
+            let leftGear = try XCTUnwrap(reordered.first { $0.accessibilityLabel() == "MBAR 设置" })
+            let firstApp = try XCTUnwrap(reordered.first { $0.accessibilityLabel() == "App 01" })
+            XCTAssertNil(leftGear.enclosingScrollView)
+            let lockFrame = leftLock.convert(leftLock.bounds, to: host)
+            let gearFrame = leftGear.convert(leftGear.bounds, to: host)
+            XCTAssertEqual(lockFrame.minX, style == .strip ? ShelfMetrics.stripInset : ShelfMetrics.bodyInset, accuracy: 0.5)
+            XCTAssertLessThan(lockFrame.maxX, gearFrame.minX)
+            window.makeFirstResponder(host)
+            window.sendEvent(try tabEvent(window: window))
+            XCTAssertTrue(window.firstResponder === (style == .strip ? leftLock : firstApp))
+            window.makeFirstResponder(leftLock)
+            leftLock.keyDown(with: try keyEvent(window: window, keyCode: 124))
+            XCTAssertTrue(window.firstResponder === leftGear)
+            leftGear.keyDown(with: try tabEvent(window: window))
+            XCTAssertTrue(window.firstResponder === firstApp)
+
+            model.setShowsShelfLock(false)
+            host.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+            let compact = shelfButtons(in: host)
+            XCTAssertFalse(compact.contains { $0.accessibilityLabel() == "锁定下拉栏" })
+            let solo = try XCTUnwrap(compact.first { $0.accessibilityLabel() == "MBAR 设置" })
+            XCTAssertEqual(solo.convert(solo.bounds, to: host).minX, lockFrame.minX, accuracy: 0.5)
+            XCTAssertTrue(window.makeFirstResponder(solo))
+            solo.keyDown(with: try tabEvent(window: window))
+            XCTAssertTrue((window.firstResponder as? ShelfButton)?.accessibilityLabel() == "App 01")
+            model.setShowsShelfLock(true)
+            model.shelfToolsSide = .right
         }
     }
 

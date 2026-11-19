@@ -9,23 +9,30 @@ public struct IconDecodedImage: Sendable {
     public let height: Int
     public let transparent: Bool
     public let previewDigest: String
+    public let resourcePointSize: CGSize?
     public var menuSized: Bool { width >= 8 && height >= 8 && width <= 512 && height <= 512 && Double(width) / Double(height) >= 0.25 && Double(width) / Double(height) <= 4 }
 }
 public enum IconImageDecoder {
-    public static func decode(_ data: Data, path: String) -> IconDecodedImage? {
+    public static func decode(_ data: Data, path: String, resourcePointSize: CGSize? = nil, maximumPixelSize: Int = 256) -> IconDecodedImage? {
         guard !data.isEmpty, data.count <= 8_388_608 else { return nil }
         var sourceWidth = 0, sourceHeight = 0
         let image: CGImage?
-        if URL(fileURLWithPath: path).pathExtension.lowercased() == "pdf" {
+        let file = URL(fileURLWithPath: path)
+        var vectorSize: CGSize?
+        if file.pathExtension.lowercased() == "pdf" {
             guard let provider = CGDataProvider(data: data as CFData), let pdf = CGPDFDocument(provider),
                   pdf.numberOfPages == 1, let page = pdf.page(at: 1) else { return nil }
             let bounds = page.getBoxRect(.mediaBox)
             guard bounds.width.isFinite, bounds.height.isFinite, bounds.width >= 1, bounds.height >= 1,
                   bounds.width <= 4096, bounds.height <= 4096, bounds.width * bounds.height <= 16_000_000 else { return nil }
-            sourceWidth = Int(bounds.width); sourceHeight = Int(bounds.height)
-            let scale = min(2, 128 / max(bounds.width, bounds.height))
-            guard let context = context(width: max(1, Int(bounds.width * scale)), height: max(1, Int(bounds.height * scale))) else { return nil }
-            context.scaleBy(x: scale, y: scale); context.translateBy(x: -bounds.minX, y: -bounds.minY)
+            let rotate = abs(Int(page.rotationAngle)) % 180 == 90
+            let size = rotate ? CGSize(width: bounds.height, height: bounds.width) : bounds.size
+            vectorSize = size
+            sourceWidth = Int(size.width); sourceHeight = Int(size.height)
+            let scale = min(2, 128 / max(size.width, size.height))
+            guard let context = context(width: max(1, Int(size.width * scale)), height: max(1, Int(size.height * scale))) else { return nil }
+            let target = CGRect(x: 0, y: 0, width: context.width, height: context.height)
+            context.concatenate(page.getDrawingTransform(.mediaBox, rect: target, rotate: 0, preserveAspectRatio: true))
             context.drawPDFPage(page); image = context.makeImage()
         } else {
             guard let source = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(source) > 0,
@@ -33,10 +40,13 @@ public enum IconImageDecoder {
                   let width = properties[kCGImagePropertyPixelWidth] as? Int,
                   let height = properties[kCGImagePropertyPixelHeight] as? Int,
                   width > 0, height > 0, width <= 16_000_000 / height else { return nil }
-            sourceWidth = width; sourceHeight = height
+            let orientation = properties[kCGImagePropertyOrientation] as? Int ?? 1
+            let swapsAxes = (5...8).contains(orientation)
+            sourceWidth = swapsAxes ? height : width
+            sourceHeight = swapsAxes ? width : height
             image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceThumbnailMaxPixelSize: 256,
+                kCGImageSourceThumbnailMaxPixelSize: maximumPixelSize,
                 kCGImageSourceCreateThumbnailWithTransform: true
             ] as CFDictionary)
         }
@@ -57,8 +67,23 @@ public enum IconImageDecoder {
         comparison.interpolationQuality = .none
         comparison.draw(normalized, in: CGRect(x: 0, y: 0, width: 64, height: 64))
         guard let pixels = comparison.data else { return nil }
+        // Vector page dimensions and named scale representations supply logical
+        // sizes; unlabelled raster dimensions alone do not identify a status icon's point size.
+        let stem = file.deletingPathExtension().lastPathComponent
+        let logical: CGSize?
+        if let declared = resourcePointSize ?? vectorSize {
+            logical = declared
+        } else if stem.hasSuffix("@1x") {
+            logical = CGSize(width: sourceWidth, height: sourceHeight)
+        } else if stem.hasSuffix("@2x") || stem.hasSuffix("@3x") {
+            let density: CGFloat = stem.hasSuffix("@2x") ? 2 : 3
+            logical = CGSize(width: CGFloat(sourceWidth) / density, height: CGFloat(sourceHeight) / density)
+        } else {
+            logical = nil
+        }
         return IconDecodedImage(png: output as Data, width: sourceWidth, height: sourceHeight, transparent: transparent,
-                                previewDigest: IconDigest.sha256(Data(bytes: pixels, count: 64 * 64 * 4)))
+                                previewDigest: IconDigest.sha256(Data(bytes: pixels, count: 64 * 64 * 4)),
+                                resourcePointSize: logical.flatMap { $0.height > 0 && $0.height <= ShelfMetrics.standardGlyphHeightLimit ? $0 : nil })
     }
     private static func context(width: Int, height: Int) -> CGContext? {
         CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
@@ -142,7 +167,7 @@ public enum IconResourceDiscovery {
             let locator: IconLocator
             let declaredTemplate: Bool
             let revision: String?
-            let read: () -> (Data, Bool)?
+            let read: () -> (data: Data, template: Bool, size: CGSize?)?
             var evidence: IconEvidence { IconEvidence(path: path, digest: "", transparent: false, menuSized: false, declaredTemplate: declaredTemplate) }
         }
         var pending: [Pending] = []
@@ -159,7 +184,7 @@ public enum IconResourceDiscovery {
             let evidence = IconEvidence(path: path, digest: "", transparent: false, menuSized: false)
             guard extensions.contains(URL(fileURLWithPath: path).pathExtension.lowercased()), !evidence.excluded,
                   evidence.worthInspecting || matchesAppName(path) else { return }
-            pending.append(Pending(path: path, locator: locator, declaredTemplate: false, revision: nil, read: { read().map { ($0, false) } }))
+            pending.append(Pending(path: path, locator: locator, declaredTemplate: false, revision: nil, read: { read().map { ($0, false, nil) } }))
         }
         if FileManager.default.fileExists(atPath: root.appendingPathComponent("Assets.car").path), !stopped() {
             do {
@@ -169,7 +194,7 @@ public enum IconResourceDiscovery {
                 entries += listing.assets.count
                 for asset in listing.assets where IconEvidence(path: asset.name, digest: "", transparent: false, menuSized: false).worthInspecting {
                     pending.append(Pending(path: asset.name, locator: .catalog(asset.name), declaredTemplate: asset.isTemplate,
-                        revision: revision, read: { IconCatalog.readImage(name: asset.name, resources: root).map { ($0.data, $0.isTemplate) } }))
+                        revision: revision, read: { IconCatalog.readImage(name: asset.name, resources: root).map { ($0.data, $0.isTemplate, $0.pointSize) } }))
                 }
             } catch { issue("无法完整读取图像资源库（Assets.car）") }
         }
@@ -204,17 +229,17 @@ public enum IconResourceDiscovery {
         if pending.count > limits.maxCandidates { issue("候选数量达到上限，已优先读取菜单图标") }
         for candidate in pending.prefix(max(0, limits.maxCandidates)) {
             if stopped() { break }
-            guard let payload = candidate.read(), let image = IconImageDecoder.decode(payload.0, path: candidate.path) else { issue("部分候选无法读取或解码"); continue }
+            guard let payload = candidate.read(), let image = IconImageDecoder.decode(payload.data, path: candidate.path, resourcePointSize: payload.size) else { issue("部分候选无法读取或解码"); continue }
             // App-name-only hints are manual candidates, and only for small transparent artwork.
             if !candidate.evidence.worthInspecting && (!image.menuSized || !image.transparent) { continue }
-            let bytes = payload.0
+            let bytes = payload.data
             let stem = (candidate.path as NSString).deletingPathExtension
             let scale = stem.hasSuffix("@2x") ? 2 : (stem.hasSuffix("@3x") ? 3 : 1)
             let base = stem.replacingOccurrences(of: "@[123]x$", with: "", options: .regularExpression)
             let family = image.width % scale == 0 && image.height % scale == 0
                 ? "\(base):\(image.width / scale)x\(image.height / scale):\(image.previewDigest)" : nil
             let evidence = IconEvidence(path: candidate.path, digest: IconDigest.sha256(bytes), transparent: image.transparent,
-                menuSized: image.menuSized, family: family, declaredTemplate: candidate.declaredTemplate || payload.1)
+                menuSized: image.menuSized, family: family, declaredTemplate: candidate.declaredTemplate || payload.template)
             result.candidates.append(IconCandidate(locator: candidate.locator, evidence: evidence, image: image, sourceRevision: candidate.revision))
         }
         _ = stopped()

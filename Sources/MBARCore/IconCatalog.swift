@@ -45,6 +45,7 @@ public enum IconCatalog {
     public struct Image: Sendable {
         public let data: Data
         public let isTemplate: Bool
+        public let pointSize: CGSize
     }
     public static func parse(_ data: Data, maxNames: Int = 5_000) throws -> Listing {
         guard data.count <= 16_777_216,
@@ -94,7 +95,7 @@ public enum IconCatalog {
                 image.draw(in: NSRect(x: 0, y: 0, width: width, height: height), from: .zero,
                            operation: .copy, fraction: 1, respectFlipped: false, hints: nil)
                 if let data = rep.representation(using: .png, properties: [:]) {
-                    output = Image(data: data, isTemplate: image.isTemplate)
+                    output = Image(data: data, isTemplate: image.isTemplate, pointSize: image.size)
                 }
             }
             return output

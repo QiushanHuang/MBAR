@@ -101,8 +101,8 @@ struct ShelfAppearanceSettings: View {
                 hillside.closeSubpath()
                 context.fill(hillside, with: .color(pine))
             }
-            ShelfMaterialSample(appearance: model.shelfAppearance)
-                .frame(width: 212, height: 38)
+            let sample = ShelfMaterialSample(model: model)
+            sample.frame(width: sample.size.width, height: sample.size.height)
         }
         .frame(height: 100)
         .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -234,7 +234,7 @@ struct ShelfAppearanceSettings: View {
         return GridRow {
             Text(label)
             HStack {
-                AppearanceSlider(label: label, range: range, value: model.shelfAppearance[keyPath: key]) { value in
+                ShelfValueSlider(label: label, range: range, value: model.shelfAppearance[keyPath: key]) { value in
                     var appearance = model.shelfAppearance
                     appearance[keyPath: key] = (value * 100).rounded() / 100
                     model.setShelfAppearance(appearance)
@@ -281,10 +281,11 @@ private struct PresetNameEditor: View {
 }
 
 /// Programmatic value updates only move the thumb. AppKit sends actions for user edits.
-private struct AppearanceSlider: NSViewRepresentable {
+struct ShelfValueSlider: NSViewRepresentable {
     let label: String
     let range: ClosedRange<Double>
     let value: Double
+    var keyboardStep: Double = 0.01
     let changed: (Double) -> Void
 
     final class Coordinator: NSObject {
@@ -296,6 +297,7 @@ private struct AppearanceSlider: NSViewRepresentable {
     func makeNSView(context: Context) -> NSSlider {
         let slider = ShelfAdjustmentSlider(value: value, minValue: range.lowerBound, maxValue: range.upperBound,
                               target: context.coordinator, action: #selector(Coordinator.slide))
+        slider.keyboardStep = keyboardStep
         slider.isContinuous = true
         slider.setAccessibilityLabel(label)
         slider.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -309,6 +311,7 @@ private struct AppearanceSlider: NSViewRepresentable {
 }
 
 private final class ShelfAdjustmentSlider: NSSlider {
+    var keyboardStep = 0.01
     override func keyDown(with event: NSEvent) {
         let direction: Double
         switch event.keyCode {
@@ -318,29 +321,69 @@ private final class ShelfAdjustmentSlider: NSSlider {
         }
         let flags = event.modifierFlags.intersection([.command, .control, .option])
         guard flags.isEmpty else { super.keyDown(with: event); return }
-        let step = event.modifierFlags.contains(.shift) ? 0.10 : 0.01
+        let step = event.modifierFlags.contains(.shift) ? max(0.10, keyboardStep) : keyboardStep
         doubleValue = min(maxValue, max(minValue, doubleValue + direction * step))
         sendAction(action, to: target)
     }
 }
 
 private struct ShelfMaterialSample: NSViewRepresentable {
-    let appearance: ShelfAppearance
+    @ObservedObject var model: AppModel
+
+    private static let symbols = ["moon.fill", "waveform", "headphones", "display"]
+    private static let artwork = CGSize(width: ShelfMetrics.referenceIconHeight, height: ShelfMetrics.referenceIconHeight)
+    var size: CGSize {
+        let cellWidth = ShelfMetrics.itemWidth(Self.artwork, scale: model.shelfIconScale)
+        return ShelfMetrics.size(style: .strip, itemWidths: Array(repeating: cellWidth, count: Self.symbols.count),
+                                 available: CGSize(width: 420, height: 80), showsLock: model.shelfLock.showsButton,
+                                 scale: model.shelfIconScale, tallestGlyphHeight: Self.artwork.height * model.shelfIconScale)
+    }
 
     func makeNSView(context: Context) -> ShelfBackdrop {
-        let content = NSHostingView(rootView: HStack(spacing: 12) {
-            ForEach(["moon.fill", "waveform", "headphones", "display"], id: \.self) { symbol in
-                Image(systemName: symbol).frame(width: 18)
-            }
-            Divider().frame(height: 15)
-            Image(systemName: "gearshape")
-        }
-        .font(.system(size: 15, weight: .medium))
-        .frame(maxWidth: .infinity, maxHeight: .infinity))
-        return ShelfBackdrop(frame: .zero, configuration: appearance, content: content, blendingMode: .withinWindow)
+        let content = NSHostingView(rootView: SampleIcons(model: model))
+        return ShelfBackdrop(frame: .zero, configuration: model.shelfAppearance, content: content, blendingMode: .withinWindow)
     }
 
     func updateNSView(_ backdrop: ShelfBackdrop, context: Context) {
-        backdrop.apply(appearance)
+        backdrop.apply(model.shelfAppearance)
+    }
+
+    private struct SampleIcons: View {
+        @ObservedObject var model: AppModel
+        private var glass: Bool { model.shelfAppearance.material == .appleGlass }
+
+        var body: some View {
+            let glyph = ShelfMetrics.glyphSize(ShelfMaterialSample.artwork, scale: model.shelfIconScale)
+            let cellWidth = ShelfMetrics.itemWidth(ShelfMaterialSample.artwork, scale: model.shelfIconScale)
+            HStack(spacing: 2) {
+                if model.shelfToolsSide == .left {
+                    tools
+                    Divider().frame(height: 16)
+                }
+                HStack(spacing: 4) {
+                    ForEach(ShelfMaterialSample.symbols, id: \.self) { symbol in
+                        ShelfGlyph(systemName: symbol, onClearGlass: glass)
+                            .frame(width: glyph.width, height: glyph.height)
+                            .frame(width: cellWidth)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                if model.shelfToolsSide == .right {
+                    Divider().frame(height: 16)
+                    tools
+                }
+            }
+            .padding(.horizontal, ShelfMetrics.stripInset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+
+        @ViewBuilder var tools: some View {
+            if model.shelfLock.showsButton {
+                ShelfGlyph(systemName: "lock.open", onClearGlass: glass)
+                    .frame(width: 14, height: 14).frame(width: 28, height: 28)
+            }
+            ShelfGlyph(systemName: "gearshape", onClearGlass: glass)
+                .frame(width: 14, height: 14).frame(width: 28, height: 28)
+        }
     }
 }

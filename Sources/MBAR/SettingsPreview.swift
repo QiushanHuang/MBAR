@@ -20,10 +20,10 @@ import SwiftUI
         let identifier = Bundle.main.bundleIdentifier ?? ""
         let noPermission = identifier.hasSuffix(".Permission")
         let activeWithoutSelection = identifier.hasSuffix(".ActiveEmpty")
-        let previewStyle = CommandLine.arguments.compactMap { argument -> ShelfStyle? in
-            guard argument.hasPrefix("--shelf-preview=") else { return nil }
-            return ShelfStyle(rawValue: String(argument.dropFirst("--shelf-preview=".count)))
-        }.first
+        func option(_ prefix: String) -> String? {
+            CommandLine.arguments.first { $0.hasPrefix(prefix) }.map { String($0.dropFirst(prefix.count)) }
+        }
+        let previewStyle = option("--shelf-preview=").flatMap(ShelfStyle.init(rawValue:))
         let showShelf = identifier.hasSuffix(".Shelf") || previewStyle != nil
         model.trusted = !noPermission
         model.hideRequested = activeWithoutSelection
@@ -45,9 +45,9 @@ import SwiftUI
         }
         if showShelf {
             model.shelfStyle = previewStyle ?? .strip
-            if let choice = CommandLine.arguments.first(where: { $0.hasPrefix("--appearance-preset=") }) {
-                model.selectShelfPreset(String(choice.dropFirst("--appearance-preset=".count)))
-            }
+            if let preset = option("--appearance-preset=") { model.selectShelfPreset(preset) }
+            if let side = option("--shelf-tools=").flatMap(ShelfToolsSide.init(rawValue:)) { model.shelfToolsSide = side }
+            if let scale = option("--shelf-scale=").flatMap(Double.init) { model.shelfIconScale = scale }
             let symbols = ["moon.stars.fill", "arrow.triangle.2.circlepath", "music.note", "calendar", "cloud.sun", "note.text"]
             model.items = Array(model.items.prefix(examples.count))
             model.policy = ShelfPolicy(assignments: Dictionary(uniqueKeysWithValues: examples.map { ($0.0, .automatic) }))
@@ -56,7 +56,8 @@ import SwiftUI
             }
         }
         let size = showShelf ? ShelfMetrics.size(style: model.shelfStyle, itemWidths: model.collected.map(model.previewWidth),
-                                                  available: CGSize(width: 550, height: 400), showsLock: true)
+                                                  available: CGSize(width: 550, height: 400), showsLock: model.shelfLock.showsButton,
+                                                  scale: model.shelfIconScale, tallestGlyphHeight: model.shelfMaxGlyphHeight)
                              : CGSize(width: 620, height: 660)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: showShelf ? [.borderless] : [.titled, .closable, .resizable], backing: .buffered, defer: false)

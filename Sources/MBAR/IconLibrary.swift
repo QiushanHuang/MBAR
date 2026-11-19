@@ -152,10 +152,19 @@ private final class IconResourceWorker {
         func load(_ mapping: IconMapping) async -> IconEntry? {
             let decoded: IconDecodedImage? = await worker.run(priority: includeCandidates) {
                 guard !cancellation.cancelled,
-                      mapping.sourceRevision == IconResourceDiscovery.sourceRevision(mapping.locator, resources: app.resources),
-                      let data = IconResourceDiscovery.read(mapping.locator, resources: app.resources, imports: imports),
-                      mapping.validation(current: app.identity, digest: IconDigest.sha256(data)) == .valid else { return nil }
-                return IconImageDecoder.decode(data, path: mapping.locator.label)
+                      mapping.sourceRevision == IconResourceDiscovery.sourceRevision(mapping.locator, resources: app.resources) else { return nil }
+                let data: Data?
+                var resourceSize: CGSize?
+                if case .catalog(let name) = mapping.locator {
+                    let asset = IconCatalog.readImage(name: name, resources: app.resources)
+                    data = asset?.data
+                    resourceSize = asset?.pointSize
+                } else {
+                    data = IconResourceDiscovery.read(mapping.locator, resources: app.resources, imports: imports)
+                }
+                guard let data, mapping.validation(current: app.identity, digest: IconDigest.sha256(data)) == .valid else { return nil }
+                let limit = mapping.origin == .nativeSnapshot ? 1600 : 256
+                return IconImageDecoder.decode(data, path: mapping.locator.label, resourcePointSize: resourceSize, maximumPixelSize: limit)
             }
             guard let decoded else { return nil }
             let state: IconSourceState
@@ -165,7 +174,7 @@ private final class IconResourceWorker {
             case .userSelected: state = .userSelected
             case .automatic: state = .automatic
             }
-            return IconEntry(state: state, image: Self.image(decoded.png, mode: mapping.mode),
+            return IconEntry(state: state, image: Self.image(decoded.png, mode: mapping.mode, pointSize: mapping.pointSize ?? decoded.resourcePointSize),
                 source: mapping.origin == .nativeSnapshot ? "原生菜单栏快照（\(mapping.selectedAt.formatted())）" : mapping.locator.label, mapping: mapping)
         }
         if let mapping, mapping.origin != .automatic {
@@ -198,8 +207,8 @@ private final class IconResourceWorker {
         if output.image == nil && output.state != .stale {
             if let index = IconRanker.automaticIndex(scan.candidates.map(\.evidence), complete: scan.complete, itemCount: app.itemCount) {
                 let candidate = scan.candidates[index]
-                let selected = IconMapping(identity: app.identity, locator: candidate.locator, digest: candidate.evidence.digest, mode: candidate.suggestedMode, origin: .automatic, sourceRevision: candidate.sourceRevision)
-                output.image = Self.image(candidate.image.png, mode: selected.mode)
+                let selected = IconMapping(identity: app.identity, locator: candidate.locator, digest: candidate.evidence.digest, mode: candidate.suggestedMode, origin: .automatic, sourceRevision: candidate.sourceRevision, pointSize: candidate.image.resourcePointSize)
+                output.image = Self.image(candidate.image.png, mode: selected.mode, pointSize: candidate.image.resourcePointSize)
                 output.source = candidate.locator.label; output.state = .automatic; output.mapping = selected
             } else { output.state = scan.candidates.isEmpty ? .missing : .needsSelection }
         }
@@ -214,10 +223,18 @@ private final class IconResourceWorker {
             return distinct && newFamily
         }
     }
-    static func image(_ data: Data, mode: IconDisplayMode) -> NSImage? {
-        guard let image = NSImage(data: data), image.size.height > 0 else { return nil }
-        let ratio = min(1, 22 / image.size.height)
-        image.size = NSSize(width: image.size.width * ratio, height: image.size.height * ratio)
+    static func image(_ data: Data, mode: IconDisplayMode, pointSize: CGSize? = nil) -> NSImage? {
+        guard let image = NSImage(data: data), image.size.width > 0, image.size.height > 0 else { return nil }
+        // Legacy snapshots and custom PNGs do not identify a display scale. Use
+        // their aspect ratio and a menu-sized reference, never their pixels as points.
+        if let pointSize, pointSize.width.isFinite, pointSize.height.isFinite,
+           pointSize.width > 0, pointSize.height > 0 {
+            let factor = min(pointSize.width / image.size.width, pointSize.height / image.size.height)
+            image.size = CGSize(width: image.size.width * factor, height: image.size.height * factor)
+        } else {
+            let factor = min(1, ShelfMetrics.referenceIconHeight / image.size.height)
+            image.size = CGSize(width: image.size.width * factor, height: image.size.height * factor)
+        }
         image.isTemplate = mode == .template
         return image
     }
@@ -248,7 +265,7 @@ private final class IconResourceWorker {
         }
         guard gate.accepts(bundle, token: token), apps[bundle]?.identity == app.identity else { throw CancellationError() }
         guard valid else { throw NSError(domain: "MBAR", code: 1, userInfo: [NSLocalizedDescriptionKey: "候选资源已变化，请重新扫描后选择。"] ) }
-        let mapping = IconMapping(identity: app.identity, locator: candidate.locator, digest: candidate.evidence.digest, mode: mode, origin: .userSelected, sourceRevision: candidate.sourceRevision)
+        let mapping = IconMapping(identity: app.identity, locator: candidate.locator, digest: candidate.evidence.digest, mode: mode, origin: .userSelected, sourceRevision: candidate.sourceRevision, pointSize: candidate.image.resourcePointSize)
         try save(mapping, app: app)
     }
     func importImage(_ url: URL) async throws -> IconDecodedImage {
@@ -266,7 +283,7 @@ private final class IconResourceWorker {
         let digest = IconDigest.sha256(decoded.png), filename = digest + ".png"
         try FileManager.default.createDirectory(at: imports, withIntermediateDirectories: true)
         try decoded.png.write(to: imports.appendingPathComponent(filename), options: .atomic)
-        try save(IconMapping(identity: app.identity, locator: .imported(filename), digest: digest, mode: mode, origin: .custom), app: app)
+        try save(IconMapping(identity: app.identity, locator: .imported(filename), digest: digest, mode: mode, origin: .custom, pointSize: decoded.resourcePointSize), app: app)
     }
     func canCaptureNative(_ bundle: String) -> Bool { apps[bundle]?.item != nil && apps[bundle]?.itemCount == 1 }
     func nativePreview(_ bundle: String) async throws -> NativeIconPreview {
@@ -283,7 +300,7 @@ private final class IconResourceWorker {
         try FileManager.default.createDirectory(at: imports, withIntermediateDirectories: true)
         try data.write(to: imports.appendingPathComponent(filename), options: .atomic)
         try save(IconMapping(identity: app.identity, locator: .imported(filename), digest: digest, mode: mode,
-                             origin: .nativeSnapshot, selectedAt: preview.capturedAt), app: app)
+                             origin: .nativeSnapshot, selectedAt: preview.capturedAt, pointSize: preview.prepared.pointSize), app: app)
     }
     private func save(_ mapping: IconMapping, app: IconApplication) throws {
         guard let store else { throw CocoaError(.fileWriteUnknown) }

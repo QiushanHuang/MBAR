@@ -50,7 +50,7 @@ struct ShelfLiveImage {
                             guard let prepared = captures.icons[item.id] else { continue }
                             let mapping = model.iconLibrary.savedMapping(for: item)
                             let mode = mapping?.origin == .nativeSnapshot ? mapping?.mode ?? prepared.mode : prepared.mode
-                            if let image = IconLibrary.image(prepared.image.png, mode: mode) {
+                            if let image = IconLibrary.image(prepared.image.png, mode: mode, pointSize: prepared.pointSize) {
                                 samples[item.id] = ShelfLiveImage(image, item: item, source: "可见原生图标 · 定期刷新")
                             }
                         }

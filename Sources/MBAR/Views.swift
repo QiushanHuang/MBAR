@@ -76,8 +76,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        let groups = model.groups
-        return VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 10) {
                 Image(systemName: "menubar.dock.rectangle")
                     .font(.system(size: 23, weight: .medium)).foregroundStyle(.teal)
@@ -90,22 +89,60 @@ struct SettingsView: View {
                     .disabled(model.refreshing || !model.trusted)
             }
 
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    if groups.isEmpty {
-                        emptyState
-                    }
-                    ForEach(Array(groups.enumerated()), id: \.element.bundle) { index, group in
-                        if let item = group.items.first {
-                            appRow(item, count: group.items.count)
-                            if index < groups.count - 1 { Divider().padding(.leading, 54) }
+            ViewThatFits(in: .vertical) {
+                VStack(spacing: 16) {
+                    appList
+                    options.fixedSize(horizontal: false, vertical: true)
+                }
+                VStack(spacing: 12) {
+                    appList.frame(height: 110)
+                    ScrollView { options.padding(2) }
+                }
+            }
+            HStack {
+                Button("退出 MBAR") { NSApp.terminate(nil) }
+                Spacer()
+                Button("打开下拉栏") { (NSApp.delegate as? AppDelegate)?.toggleShelf() }
+                    .buttonStyle(.borderedProminent).tint(.teal)
+                    .disabled(!model.trusted)
+                    .help(model.trusted ? "打开 MBAR 下拉栏。" : "请先允许辅助功能。")
+            }
+        }.padding(24).frame(minWidth: 580, minHeight: 500)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .sheet(isPresented: $showsAppearance) { ShelfAppearanceSettings(model: model) }
+            .sheet(isPresented: Binding(get: { model.iconSettingsBundle != nil }, set: { if !$0 { model.iconSettingsBundle = nil } })) {
+                if let bundle = model.iconSettingsBundle {
+                    IconSettingsView(library: model.iconLibrary, bundle: bundle,
+                        name: model.items.first(where: { $0.bundle == bundle })?.name ?? bundle,
+                        dismiss: { model.iconSettingsBundle = nil })
+                }
+            }
+    }
+
+    private var appList: some View {
+        let groups = model.groups
+        return Group {
+            if groups.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(groups.enumerated()), id: \.element.bundle) { index, group in
+                            if let item = group.items.first {
+                                appRow(item, count: group.items.count)
+                                if index < groups.count - 1 { Divider().padding(.leading, 54) }
+                            }
                         }
                     }
                 }
             }
-            .frame(minHeight: 110, maxHeight: .infinity)
-            .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .frame(minHeight: 110, idealHeight: 110, maxHeight: .infinity)
+        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 12))
+    }
 
+    private var options: some View {
+        VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
                     Toggle("启用隐藏", isOn: Binding(get: { model.hideRequested }, set: { model.enableHiding($0) }))
@@ -130,23 +167,7 @@ struct SettingsView: View {
             }
             Divider()
             shelfSettings
-            HStack {
-                Button("退出 MBAR") { NSApp.terminate(nil) }
-                Spacer()
-                Button("打开下拉栏") { (NSApp.delegate as? AppDelegate)?.toggleShelf() }
-                    .buttonStyle(.borderedProminent).tint(.teal)
-                    .disabled(!model.trusted)
-                    .help(model.trusted ? "打开 MBAR 下拉栏。" : "请先允许辅助功能。")
-            }
-        }.padding(24).frame(minWidth: 580, minHeight: 500)
-            .background(Color(nsColor: .windowBackgroundColor))
-            .sheet(isPresented: Binding(get: { model.iconSettingsBundle != nil }, set: { if !$0 { model.iconSettingsBundle = nil } })) {
-                if let bundle = model.iconSettingsBundle {
-                    IconSettingsView(library: model.iconLibrary, bundle: bundle,
-                        name: model.items.first(where: { $0.bundle == bundle })?.name ?? bundle,
-                        dismiss: { model.iconSettingsBundle = nil })
-                }
-            }
+        }
     }
 
     private var shelfSettings: some View {
@@ -159,9 +180,6 @@ struct SettingsView: View {
                 }
                 .controlSize(.small)
                 .accessibilityLabel("下拉栏外观")
-                .sheet(isPresented: $showsAppearance) {
-                    ShelfAppearanceSettings(model: model)
-                }
             }
             Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
                 GridRow {
@@ -184,6 +202,28 @@ struct SettingsView: View {
                         }
                         .help("选择相对 MBAR 入口的展开方向。靠近屏幕边缘时，下拉栏会移入可见区域。")
                     }
+                }
+                GridRow {
+                    Text("图标大小")
+                    HStack(spacing: 8) {
+                        ShelfValueSlider(label: "图标大小", range: ShelfIconScale.range, value: model.shelfIconScale,
+                                         keyboardStep: ShelfIconScale.step) { model.shelfIconScale = $0 }
+                            .frame(maxWidth: .infinity)
+                        Text(model.shelfIconScale.formatted(.percent))
+                            .monospacedDigit().frame(width: 40, alignment: .trailing)
+                        Button("还原") { model.shelfIconScale = 1 }
+                            .controlSize(.small)
+                            .disabled(model.shelfIconScale == 1)
+                            .accessibilityLabel("还原图标大小至 100%")
+                    }
+                }
+                GridRow {
+                    Text("锁定与设置")
+                    Picker("锁定和设置按钮的位置", selection: $model.shelfToolsSide) {
+                        Text("左侧").tag(ShelfToolsSide.left)
+                        Text("右侧").tag(ShelfToolsSide.right)
+                    }
+                    .help("将锁定和设置按钮一起放在下拉栏左侧或右侧。")
                 }
             }
             .pickerStyle(.segmented)
@@ -225,7 +265,7 @@ struct SettingsView: View {
                 Text("没有可读取的菜单栏应用").foregroundStyle(.secondary)
                 Button("刷新", action: model.refreshContents)
             }
-        }.frame(maxWidth: .infinity, minHeight: 180).padding(24)
+        }.frame(maxWidth: .infinity).padding(6)
     }
 
     private func appRow(_ item: MenuItem, count: Int) -> some View {
@@ -264,9 +304,15 @@ struct ShelfView: View {
 
     var body: some View {
         let items = model.collected
+        let tallest = model.shelfMaxGlyphHeight
         Group {
             if model.shelfStyle == .strip {
+                let itemHeight = ShelfMetrics.stripItemHeight(scale: model.shelfIconScale, tallestGlyphHeight: tallest)
                 HStack(spacing: 2) {
+                    if toolsOnLeft {
+                        tools(itemCount: items.count, columns: max(1, items.count))
+                        Divider().frame(height: 16)
+                    }
                     if items.isEmpty {
                         emptyState
                     } else {
@@ -274,21 +320,29 @@ struct ShelfView: View {
                             HStack(spacing: 4) {
                                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                                     itemControl(item, index: index, columns: items.count)
-                                        .frame(width: model.previewWidth(for: item), height: 28)
+                                        .frame(width: model.previewWidth(for: item),
+                                               height: itemHeight)
                                 }
                             }
                         }
+                        .frame(height: itemHeight)
+                        .clipped()
                     }
-                    Divider().frame(height: 16)
-                    tools(itemCount: items.count, columns: items.count)
+                    if !toolsOnLeft {
+                        Divider().frame(height: 16)
+                        tools(itemCount: items.count, columns: max(1, items.count))
+                    }
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, ShelfMetrics.stripInset)
             } else {
                 let columns = model.shelfStyle == .grid ? ShelfMetrics.gridColumns(for: width, itemCount: items.count) : 1
                 VStack(spacing: 0) {
                     if items.isEmpty {
                         emptyState
                     } else {
+                        let rowHeight = model.shelfStyle == .grid
+                            ? ShelfMetrics.tileHeight(scale: model.shelfIconScale, tallestGlyphHeight: tallest)
+                            : ShelfMetrics.listRowHeight(scale: model.shelfIconScale, tallestGlyphHeight: tallest)
                         ScrollView(.vertical) {
                             // Keep offscreen buttons registered so keyboard navigation can reach every row.
                             VStack(spacing: ShelfMetrics.rowSpacing) {
@@ -303,21 +357,28 @@ struct ShelfView: View {
                                             }
                                         }
                                     }
-                                    .frame(height: model.shelfStyle == .grid ? ShelfMetrics.tileHeight : ShelfMetrics.listRowHeight)
+                                    .frame(height: rowHeight)
                                 }
                             }
-                            .padding(ShelfMetrics.bodyInset)
                         }
+                        .clipped()
+                        .padding(ShelfMetrics.bodyInset)
                     }
                     HStack(spacing: 2) {
+                        if toolsOnLeft {
+                            tools(itemCount: items.count, columns: columns)
+                            Spacer(minLength: 0)
+                        }
                         if !items.isEmpty {
                             Text("\(items.count) 个项目")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                                .padding(.leading, 6)
+                                .padding(toolsOnLeft ? .trailing : .leading, 6)
                         }
-                        Spacer(minLength: 0)
-                        tools(itemCount: items.count, columns: columns)
+                        if !toolsOnLeft {
+                            Spacer(minLength: 0)
+                            tools(itemCount: items.count, columns: columns)
+                        }
                     }
                     .padding(.horizontal, ShelfMetrics.bodyInset)
                     .frame(height: ShelfMetrics.footerHeight)
@@ -327,6 +388,10 @@ struct ShelfView: View {
         }
         .frame(width: width, height: height)
     }
+
+    private var toolsOnLeft: Bool { model.shelfToolsSide == .left }
+    private var toolCount: Int { model.shelfLock.showsButton ? 2 : 1 }
+    private var clearGlass: Bool { model.shelfAppearance.material == .appleGlass }
 
     private var emptyState: some View {
         Label("尚未收入应用", systemImage: "tray")
@@ -340,25 +405,19 @@ struct ShelfView: View {
         let image = model.shelfImage(for: item)
         let help = image == nil ? "选择此项目的图标" : model.shelfIconDescription(for: item)
         let itemName = model.shelfItemLabel(for: item)
-        let icon = Group {
-            if let image {
-                Image(nsImage: image)
-                    .renderingMode(image.isTemplate ? .template : .original)
-                    .resizable()
-                    .scaledToFit()
-            } else {
-                Image(systemName: "circle.dotted")
-                    .foregroundStyle(.secondary)
-            }
-        }
+        let glyphSize = model.shelfGlyphSize(for: item)
+        let icon = ShelfGlyph(image: image, onClearGlass: clearGlass,
+                              preservesOriginalInk: model.iconLibrary.hasOverride(item.bundle))
+            .frame(maxWidth: glyphSize.width, maxHeight: glyphSize.height)
+        let leadingTools = model.shelfStyle == .strip && toolsOnLeft ? toolCount : 0
         return ZStack {
             Group {
                 switch model.shelfStyle {
                 case .strip:
-                    icon.frame(maxHeight: 24)
+                    icon.padding(.horizontal, 2)
                 case .grid:
                     VStack(spacing: 4) {
-                        icon.frame(height: 21)
+                        icon
                         Text(item.name).font(.caption).lineLimit(1)
                     }
                     .padding(.horizontal, 4)
@@ -366,7 +425,7 @@ struct ShelfView: View {
                     .background(.quaternary.opacity(0.48), in: RoundedRectangle(cornerRadius: 7))
                 case .list:
                     HStack(spacing: 9) {
-                        icon.frame(width: min(max(38, model.previewWidth(for: item)), width * 0.42), height: 21)
+                        icon.frame(width: min(max(38, glyphSize.width), width * 0.42))
                         Text(item.name).font(.body).lineLimit(1)
                         Spacer(minLength: 2)
                         Image(systemName: image == nil ? "slider.horizontal.3" : "chevron.forward")
@@ -376,11 +435,13 @@ struct ShelfView: View {
                     .padding(.horizontal, 8)
                 }
             }
+            .clipped()
             .accessibilityHidden(true)
             .allowsHitTesting(false)
             .opacity(model.capturing ? 0.5 : 1)
             ShelfTarget(label: itemName, help: help, enabled: !model.capturing,
-                        focus: focus, order: index, row: index / columns, column: index % columns,
+                        focus: focus, order: index + leadingTools, row: index / columns,
+                        column: index % columns + leadingTools,
                         allowsRightClick: image != nil) { right in
                 if image == nil { model.configureIcon(item.bundle) }
                 else { model.openItem(item, right: right) }
@@ -392,16 +453,17 @@ struct ShelfView: View {
     @ViewBuilder private func tools(itemCount: Int, columns: Int) -> some View {
         let strip = model.shelfStyle == .strip
         let row = strip ? 0 : (itemCount + columns - 1) / columns
-        let firstColumn = strip ? itemCount : max(0, columns - (model.shelfLock.showsButton ? 2 : 1))
+        let firstOrder = strip && toolsOnLeft ? 0 : itemCount
+        let firstColumn = toolsOnLeft ? 0 : (strip ? itemCount : max(0, columns - toolCount))
         if model.shelfLock.showsButton {
             let locked = model.shelfLock.isLocked
             tool(symbol: locked ? "lock.fill" : "lock.open", label: locked ? "解锁下拉栏" : "锁定下拉栏",
-                 selected: locked, order: itemCount, row: row, column: firstColumn) {
+                 selected: locked, order: firstOrder, row: row, column: firstColumn) {
                 model.toggleShelfLock()
             }
         }
-        tool(symbol: "gearshape", label: "MBAR 设置", selected: false, order: itemCount + 1,
-             row: row, column: firstColumn + (model.shelfLock.showsButton ? 1 : 0)) {
+        tool(symbol: "gearshape", label: "MBAR 设置", selected: false, order: firstOrder + toolCount - 1,
+             row: row, column: firstColumn + toolCount - 1) {
             model.showSettings?()
         }
     }
@@ -409,9 +471,8 @@ struct ShelfView: View {
     private func tool(symbol: String, label: String, selected: Bool, order: Int, row: Int, column: Int,
                       action: @escaping () -> Void) -> some View {
         ZStack {
-            Image(systemName: symbol)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(selected ? Color.accentColor : .secondary)
+            ShelfGlyph(systemName: symbol, onClearGlass: clearGlass, selected: selected)
+                .frame(width: 14, height: 14)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(selected ? Color.accentColor.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 6))
                 .allowsHitTesting(false)

@@ -40,8 +40,24 @@ public struct SnapshotSession {
 public enum ShelfStyle: String, CaseIterable, Sendable { case strip, grid, list }
 public enum ShelfPlacement: String, CaseIterable, Sendable { case anchor, left, right }
 public enum ShelfAlignment: String, CaseIterable, Sendable { case left, center, right }
+public enum ShelfToolsSide: String, CaseIterable, Sendable { case left, right }
+
+public enum ShelfIconScale {
+    public static let range = 0.70...1.50
+    private static let incrementsPerUnit = 20.0
+    public static let step = 1 / incrementsPerUnit
+
+    public static func normalized(_ value: Double) -> Double {
+        guard value.isFinite else { return 1 }
+        let clamped = min(range.upperBound, max(range.lowerBound, value))
+        return (clamped * incrementsPerUnit).rounded() / incrementsPerUnit
+    }
+}
 
 public enum ShelfMetrics {
+    public static let referenceIconHeight: CGFloat = 18
+    public static let standardGlyphHeightLimit: CGFloat = 24
+    public static let stripInset: CGFloat = 8
     public static let height: CGFloat = 36
     public static let tileHeight: CGFloat = 56
     public static let listRowHeight: CGFloat = 36
@@ -54,13 +70,40 @@ public enum ShelfMetrics {
         return max(1, min(4, itemCount, fitting))
     }
 
-    public static func size(style: ShelfStyle, itemWidths: [CGFloat], available: CGSize, showsLock: Bool) -> CGSize {
+    /// Source images carry logical point dimensions before user scaling. Unknown artwork
+    /// is fitted to an 18pt reference at load time. Measured captures can use the
+    /// full menu-bar height: layout reserves additional space for them below.
+    public static func glyphSize(_ source: CGSize?, scale: Double = 1) -> CGSize {
+        let reference = CGSize(width: referenceIconHeight, height: referenceIconHeight)
+        let size = source.flatMap { $0.width.isFinite && $0.height.isFinite && $0.width > 0 && $0.height > 0 ? $0 : nil } ?? reference
+        let userScale = ShelfIconScale.normalized(scale)
+        let factor = min(userScale * min(1, 80 / size.height), 316 / size.width)
+        return CGSize(width: size.width * factor, height: size.height * factor)
+    }
+
+    private static func extraHeight(scale: Double, tallestGlyphHeight: CGFloat?) -> CGFloat {
+        let glyphHeight = tallestGlyphHeight ?? standardGlyphHeightLimit * ShelfIconScale.normalized(scale)
+        return max(0, ceil(glyphHeight) - standardGlyphHeightLimit)
+    }
+
+    public static func stripItemHeight(scale: Double, tallestGlyphHeight: CGFloat? = nil) -> CGFloat {
+        28 + extraHeight(scale: scale, tallestGlyphHeight: tallestGlyphHeight)
+    }
+    public static func tileHeight(scale: Double, tallestGlyphHeight: CGFloat? = nil) -> CGFloat {
+        tileHeight + extraHeight(scale: scale, tallestGlyphHeight: tallestGlyphHeight)
+    }
+    public static func listRowHeight(scale: Double, tallestGlyphHeight: CGFloat? = nil) -> CGFloat {
+        listRowHeight + extraHeight(scale: scale, tallestGlyphHeight: tallestGlyphHeight)
+    }
+
+    public static func size(style: ShelfStyle, itemWidths: [CGFloat], available: CGSize, showsLock: Bool,
+                            scale: Double = 1, tallestGlyphHeight: CGFloat? = nil) -> CGSize {
         let count = itemWidths.count
         let maxWidth = max(1, available.width)
         let maxHeight = max(1, available.height)
         if style == .strip {
             let ideal = count == 0 ? 190 : width(itemWidths: itemWidths, available: maxWidth, showsLock: showsLock)
-            return CGSize(width: min(ideal, maxWidth), height: min(height, maxHeight))
+            return CGSize(width: min(ideal, maxWidth), height: min(height + extraHeight(scale: scale, tallestGlyphHeight: tallestGlyphHeight), maxHeight))
         }
         let columns = CGFloat(max(1, min(count, 4)))
         let ideal = style == .list ? 264 : max(208, 2 * bodyInset + columns * 92 + (columns - 1) * rowSpacing)
@@ -68,16 +111,16 @@ public enum ShelfMetrics {
         let fittedColumns = style == .list ? 1 : gridColumns(for: width, itemCount: count)
         let rows = max(1, (count + fittedColumns - 1) / fittedColumns)
         let visibleRows = CGFloat(min(rows, style == .list ? 8 : 4))
-        let rowHeight = style == .list ? listRowHeight : tileHeight
+        let rowHeight = style == .list ? listRowHeight(scale: scale, tallestGlyphHeight: tallestGlyphHeight)
+                                      : tileHeight(scale: scale, tallestGlyphHeight: tallestGlyphHeight)
         let height = 2 * bodyInset + visibleRows * rowHeight + (visibleRows - 1) * rowSpacing + footerHeight
         return CGSize(width: width, height: min(height, maxHeight))
     }
-    public static func itemWidth(_ size: CGSize?) -> CGFloat {
-        guard let size, size.height > 0 else { return 28 }
-        return min(320, max(24, size.width * 24 / size.height))
+    public static func itemWidth(_ size: CGSize?, scale: Double = 1) -> CGFloat {
+        max(24, ceil(glyphSize(size, scale: scale).width) + 4)
     }
     public static func width(itemWidths: [CGFloat], available: CGFloat, showsLock: Bool = false) -> CGFloat {
-        let controls: CGFloat = showsLock ? 72 : 42
+        let controls: CGFloat = 2 * stripInset + (showsLock ? 64 : 34)
         return min(max(36, available), max(controls, itemWidths.reduce(0, +) + CGFloat(itemWidths.count) * 4 + controls))
     }
 }

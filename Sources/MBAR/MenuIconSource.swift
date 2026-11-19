@@ -14,6 +14,13 @@ struct LoadedMenuIcons {
     private var cache: [String: NSImage] = [:]
     private var cacheSources: [String: String] = [:]
 
+    /// Keep an adapter's artwork inside its intended point box, retaining its aspect ratio.
+    private func fit(_ image: NSImage?, width: CGFloat = .greatestFiniteMagnitude, height: CGFloat) {
+        guard let image, image.size.width > 0, image.size.height > 0 else { return }
+        let factor = min(1, width / image.size.width, height / image.size.height)
+        image.size = NSSize(width: image.size.width * factor, height: image.size.height * factor)
+    }
+
     func load(_ items: [MenuItem]) async -> LoadedMenuIcons {
         var result = LoadedMenuIcons()
         let counts = Dictionary(grouping: items, by: \.bundle).mapValues(\.count)
@@ -45,16 +52,18 @@ struct LoadedMenuIcons {
                 if let resource {
                     failure = "应用的菜单图标资源名称或格式已变化"
                     image = bundle.image(forResource: NSImage.Name(resource))?.copy() as? NSImage
+                    // Oversized source canvases do not establish the app's displayed menu size.
+                    if let image, image.size.height > ShelfMetrics.standardGlyphHeightLimit { fit(image, height: ShelfMetrics.referenceIconHeight) }
                     source = "菜单栏原始资源：\(resource)（静态）"
                 } else if item.bundle == "com.openai.codex",
                           let url = bundle.url(forResource: "chatgptTemplate@2x", withExtension: "png") {
                     image = NSImage(contentsOf: url)
-                    image?.size = NSSize(width: 18, height: 18); image?.isTemplate = true
+                    fit(image, width: 18, height: 18); image?.isTemplate = true
                     source = "菜单栏原始资源：chatgptTemplate@2x.png（静态）"
                 } else if item.bundle == "studio.qiushan.ScreenPilot" {
                     // Verified in ScreenPilot's status-item creation code.
                     image = NSImage(systemSymbolName: "display.2", accessibilityDescription: item.name)
-                    image?.size = NSSize(width: 24, height: 20)
+                    fit(image, width: 24, height: 20)
                     source = "菜单栏原始符号：display.2（静态）"
                 } else if ["com.electron.dockerdesktop", "com.ugreen.pro.client"].contains(item.bundle),
                           let resources = bundle.resourceURL {
@@ -66,8 +75,7 @@ struct LoadedMenuIcons {
                         return ASARResource.extract(from: archive, path: path)
                     }.value
                     if let data, let decoded = NSImage(data: data), decoded.size.height > 0 {
-                        let height: CGFloat = 22
-                        decoded.size = NSSize(width: decoded.size.width * height / decoded.size.height, height: height)
+                        fit(decoded, height: ShelfMetrics.referenceIconHeight)
                         decoded.isTemplate = true
                         image = decoded; source = "菜单栏原始资源：\(path)（静态）"
                     }
@@ -94,7 +102,7 @@ struct LoadedMenuIcons {
                         }.value
                         if let data {
                             image = NSImage(data: data)
-                            image?.size = NSSize(width: descriptor.size, height: descriptor.size)
+                            fit(image, width: descriptor.size, height: descriptor.size)
                             image?.isTemplate = true
                             source = "内置菜单栏资源：\(descriptor.name)（完整性已校验，静态）"
                         }

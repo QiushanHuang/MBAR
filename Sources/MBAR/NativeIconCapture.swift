@@ -56,7 +56,7 @@ struct NativeIconBatch {
         for item in final {
             guard let image = captured.images[item.id],
                   let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { continue }
-            result[item.id] = NativeIconQuality.prepare(cg)
+            result[item.id] = NativeIconQuality.prepare(cg, sourcePointSize: image.size)
         }
         return NativeIconBatch(icons: result, failure: result.isEmpty ? captured.failure ?? "图像可能被遮挡、裁切或淡化，请检查菜单栏再试。" : nil)
     }

@@ -42,10 +42,12 @@ public struct IconMapping: Codable, Equatable, Sendable {
     public var origin: IconOrigin
     public var selectedAt: Date
     public var sourceRevision: String?
-    public init(identity: IconAppIdentity, locator: IconLocator, digest: String, mode: IconDisplayMode, origin: IconOrigin, selectedAt: Date = Date(), sourceRevision: String? = nil) {
+    public var pointSize: CGSize?
+    public init(identity: IconAppIdentity, locator: IconLocator, digest: String, mode: IconDisplayMode, origin: IconOrigin, selectedAt: Date = Date(), sourceRevision: String? = nil, pointSize: CGSize? = nil) {
         self.identity = identity; self.locator = locator; self.digest = digest
         self.mode = mode; self.origin = origin; self.selectedAt = selectedAt
         self.sourceRevision = sourceRevision
+        self.pointSize = pointSize
     }
     public func validation(current: IconAppIdentity, digest: String?) -> IconValidation {
         guard identity.key == current.key else { return .differentInstallation }

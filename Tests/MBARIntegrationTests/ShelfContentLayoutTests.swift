@@ -70,9 +70,68 @@ final class ShelfContentLayoutTests: XCTestCase {
                 let button = try XCTUnwrap(allButtons(in: host).first { $0.accessibilityLabel() == "MBAR 设置" })
                 let target = button.convert(button.bounds, to: backdrop)
                 XCTAssertEqual(target.midY, backdrop.bounds.midY, accuracy: 0.5)
-                XCTAssertEqual(backdrop.bounds.maxX - target.maxX, 4, accuracy: 0.5)
+                XCTAssertEqual(backdrop.bounds.maxX - target.maxX, ShelfMetrics.stripInset, accuracy: 0.5)
             }
         }
+    }
+
+    @MainActor func testStripPaintsWideArtworkAtItsPointSizeWithEdgeClearance() throws {
+        try withModel { model in
+            let item = MenuItem(id: "wide", bundle: "layout.fixture", name: "Wide", title: "Wide",
+                                pid: getpid(), element: AXUIElementCreateApplication(getpid()), frame: nil)
+            model.items = [item]
+            model.policy = ShelfPolicy(assignments: [item.bundle: .automatic])
+            model.selectShelfPreset("apple-glass")
+            // Include a 26pt native crop from a tall menu bar alongside the usual 24pt image.
+            for (height, scale): (CGFloat, Double) in [(24, 0.70), (24, 1), (24, 1.50), (26, 1), (26, 1.50)] {
+                let sourceSize = CGSize(width: 2 * height, height: height)
+                model.previews[item.id] = NSImage(size: sourceSize, flipped: false) { rect in
+                    NSColor.red.setFill()
+                    NSBezierPath.fill(rect)
+                    return true
+                }
+                model.shelfIconScale = scale
+                for side in ShelfToolsSide.allCases {
+                    model.shelfToolsSide = side
+                    let size = ShelfMetrics.size(style: .strip, itemWidths: [model.previewWidth(for: item)],
+                                                 available: CGSize(width: 500, height: 100), showsLock: true,
+                                                 scale: scale, tallestGlyphHeight: model.shelfMaxGlyphHeight)
+                    let frame = CGRect(origin: CGPoint(x: -3000, y: -3000), size: size)
+                    let panel = ShelfPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+                    let host = ShelfHostingView(rootView: ShelfView(model: model, width: size.width, height: size.height))
+                    panel.contentView = ShelfBackdrop(frame: CGRect(origin: .zero, size: size),
+                                                      configuration: model.shelfAppearance, content: host)
+                    panel.orderFrontRegardless()
+                    defer { panel.orderOut(nil) }
+                    host.layoutSubtreeIfNeeded()
+                    RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.03))
+                    let painted = try redBounds(in: host)
+                    XCTAssertEqual(painted.width, sourceSize.width * scale, accuracy: 1, "\(scale), \(side)")
+                    XCTAssertEqual(painted.height, sourceSize.height * scale, accuracy: 1)
+                    XCTAssertEqual(painted.midY, size.height / 2, accuracy: 1)
+                    XCTAssertGreaterThanOrEqual(painted.minX, ShelfMetrics.stripInset)
+                    XCTAssertGreaterThanOrEqual(size.width - painted.maxX, ShelfMetrics.stripInset)
+                    XCTAssertGreaterThanOrEqual(min(painted.minY, size.height - painted.maxY), 5)
+                }
+            }
+        }
+    }
+
+    @MainActor private func redBounds(in view: NSView) throws -> CGRect {
+        let bitmap = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        var pixels = CGRect.null
+        for y in 0..<bitmap.pixelsHigh {
+            for x in 0..<bitmap.pixelsWide {
+                guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
+                      color.alphaComponent > 0.75, color.redComponent > 0.65,
+                      color.redComponent - max(color.greenComponent, color.blueComponent) > 0.45 else { continue }
+                pixels = pixels.union(CGRect(x: x, y: y, width: 1, height: 1))
+            }
+        }
+        let painted = try XCTUnwrap(pixels.isNull ? nil : pixels, "The shelf should draw the synthetic red artwork.")
+        return painted.applying(CGAffineTransform(scaleX: view.bounds.width / CGFloat(bitmap.pixelsWide),
+                                                  y: view.bounds.height / CGFloat(bitmap.pixelsHigh)))
     }
 
     @MainActor private func allButtons(in view: NSView) -> [ShelfButton] {
