@@ -82,16 +82,15 @@ import MBARCore
         layer?.borderColor = border.withAlphaComponent(contrast ? 0.6 : (dark ? 0.25 : 0.16)).cgColor
 
         let clearGlass = material == .appleGlass
-        // Only an explicit color choice paints the interior. The icon halo
-        // supplies local contrast across light and dark desktop regions.
+        // The glass stays transparent between glyphs when the configured tint is zero.
         layer?.backgroundColor = clearGlass && strength > 0 ? tint.withAlphaComponent(strength * 0.30).cgColor : nil
         let needsHalo = material == .translucent && !reduced && !contrast && configuration.opacity < 0.62
-        if clearGlass || needsHalo {
+        if needsHalo {
             // A narrow halo stays with the glyphs as the desktop behind a low-opacity panel changes.
             let halo = NSShadow()
-            halo.shadowOffset = clearGlass ? NSSize(width: 0, height: -0.9) : .zero
-            halo.shadowBlurRadius = clearGlass ? 0.6 : 1.5
-            halo.shadowColor = (dark || clearGlass ? NSColor.black : NSColor.white).withAlphaComponent(0.95)
+            halo.shadowOffset = .zero
+            halo.shadowBlurRadius = 1.5
+            halo.shadowColor = (dark ? NSColor.black : NSColor.white).withAlphaComponent(0.95)
             content.shadow = halo
         } else {
             content.shadow = nil
@@ -218,17 +217,7 @@ import MBARCore
         reflection.setAccessibilityElement(false)
         addSubview(reflection)
 
-        // Two short, opposing shadows outline just the glyphs on white desktop
-        // content. Keeping this one on a separate view leaves the glass clear.
-        let foreground = NSView(frame: bounds)
-        foreground.autoresizingMask = [.width, .height]
-        let stroke = NSShadow()
-        stroke.shadowOffset = NSSize(width: -0.5, height: 0.8)
-        stroke.shadowColor = .black
-        stroke.shadowBlurRadius = 0.65
-        foreground.shadow = stroke
-        foreground.addSubview(content)
-        addSubview(foreground)
+        addSubview(content)
     }
 
     @available(*, unavailable)

@@ -9,14 +9,17 @@ final class ShelfGlyphTests: XCTestCase {
         _ = NSApplication.shared
         let source = image(.black)
         XCTAssertTrue(ShelfGlyph.usesSingleInk(source))
-        let automatic = try rendered(source, preserveOriginal: false)
+        let automatic = try rendered(source, preserveOriginal: false, treatment: .darkPlate)
         XCTAssertGreaterThan(automatic(10, 10).redComponent, 0.9)
-        let original = try rendered(source, preserveOriginal: true)
+        let original = try rendered(source, preserveOriginal: true, treatment: .darkPlate)
         XCTAssertLessThan(original(10, 10).redComponent, 0.1)
-        // An explicit black silhouette gets a light edge on black, confined to
-        // the outline; there is no colored button plate or opaque icon square.
-        XCTAssertGreaterThan(original(3, 10).redComponent, 0.18)
-        XCTAssertLessThan(original(1, 10).redComponent, 0.02)
+        // The original stays black. A pale backing shows through its transparent
+        // regions, but stops before the surrounding shelf.
+        XCTAssertGreaterThan(original(1, 10).redComponent, 0.8)
+        XCTAssertLessThan(original(-4, 10).redComponent, 0.02)
+        let light = try rendered(source, preserveOriginal: false, treatment: .lightPlate)
+        XCTAssertLessThan(light(10, 10).redComponent, 0.1)
+        XCTAssertGreaterThan(light(1, 10).redComponent, 0.8)
     }
 
     @MainActor func testColoredOrTwoInkArtworkPreservesItsInternalDetail() throws {
@@ -49,14 +52,15 @@ final class ShelfGlyphTests: XCTestCase {
         }
     }
 
-    @MainActor private func rendered(_ source: NSImage, preserveOriginal: Bool, clear: Bool = true) throws -> (Int, Int) -> NSColor {
+    @MainActor private func rendered(_ source: NSImage, preserveOriginal: Bool, clear: Bool = true, treatment: ShelfIconTreatment = .automatic) throws -> (Int, Int) -> NSColor {
         guard !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency else { throw XCTSkip("Requires transparent desktop material.") }
-        let glyph = ShelfGlyph(image: source, onClearGlass: clear, preservesOriginalInk: preserveOriginal)
+        let glyph = ShelfGlyph(image: source, onClearGlass: clear, treatment: treatment, preservesOriginalInk: preserveOriginal)
             .frame(width: 20, height: 20)
+            .padding(4)
             .background(.black)
         let renderer = ImageRenderer(content: glyph)
         renderer.scale = 1
         let bitmap = NSBitmapImageRep(cgImage: try XCTUnwrap(renderer.cgImage))
-        return { x, y in bitmap.colorAt(x: x, y: y)!.usingColorSpace(.sRGB)! }
+        return { x, y in bitmap.colorAt(x: x + 4, y: y + 4)!.usingColorSpace(.sRGB)! }
     }
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.2 — 2026-11-20
+
+- Clear-glass shelf icons draw the source alpha once, keeping narrow openings and multi-level status indicators visible. Local contrast backgrounds support automatic, light and dark ink treatments in the appearance editor.
+
 ## 0.7.1 — 2026-11-20
 
 - Resize shelf app icons from 70% to 150%. At 100%, captured artwork uses its measured point dimensions; artwork without a known native size uses a proportional menu-sized fallback.
@@ -70,6 +74,10 @@ artwork, limited adapters and physical-display compatibility limits are document
 in the README. Local prototype versions before 0.4.0 were not GitHub releases.
 
 ## 中文
+
+### 0.7.2 — 2026-11-20
+
+- 修正苹果液态玻璃上细线、镂空与半透明图案糊成一团的问题。外观设置中的「图标显示」可以切换自动、浅底深色或深底浅色。
 
 ### 0.7.1 — 2026-11-20
 

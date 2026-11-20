@@ -86,6 +86,33 @@ final class ShelfAppearanceTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(ShelfAppearancePreferences.self, from: JSONEncoder().encode(state)), state)
     }
 
+    func testGlassIconTreatmentTravelsWithPresetAndLegacyCopiesUseAutomatic() throws {
+        let legacyAppearance = """
+            {"material":"appleGlass","tint":{"red":0.2,"green":0.3,"blue":0.6},"intensity":0.45,"frostAmount":0.15}
+            """
+        let data = Data("""
+            {"selectedID":"custom.old","appearance":\(legacyAppearance),"customPresets":[
+              {"id":"custom.old","name":"山色","appearance":\(legacyAppearance)}]}
+            """.utf8)
+        var preferences = try JSONDecoder().decode(ShelfAppearancePreferences.self, from: data)
+        XCTAssertEqual(preferences.appearance.iconTreatment, .automatic)
+        XCTAssertEqual(preferences.customPresets[0].appearance, preferences.appearance)
+        var variation = preferences.appearance
+        variation.iconTreatment = .darkPlate
+        preferences.customize(variation)
+        XCTAssertTrue(preferences.save(named: "入夜"))
+        let copy = preferences.selectedID
+        variation.iconTreatment = .lightPlate
+        preferences.customize(variation)
+        preferences = try JSONDecoder().decode(ShelfAppearancePreferences.self, from: JSONEncoder().encode(preferences))
+        XCTAssertEqual(preferences.appearance, variation)
+        preferences.select(copy)
+        XCTAssertEqual(preferences.appearance.iconTreatment, .darkPlate)
+        preferences.select("custom.old")
+        XCTAssertEqual(preferences.appearance.iconTreatment, .automatic)
+        XCTAssertEqual(preferences.appearance.intensity, 0.45)
+    }
+
     func testFactoryFrostMigrationPreservesCustomGlassAndExplicitZero() throws {
         let oldJSON = """
             {"material":"appleGlass","tint":{"red":0.76,"green":0.91,"blue":1},"intensity":0,"opacity":0.74}

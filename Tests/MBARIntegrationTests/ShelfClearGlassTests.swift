@@ -32,7 +32,7 @@ final class ShelfClearGlassTests: XCTestCase {
         XCTAssertEqual(alpha(106, 19), 0, "System material in the center would blur or tint the desktop.")
         XCTAssertEqual(backdrop.layer?.backgroundColor?.alpha ?? 0, 0)
         XCTAssertNil(glass.tintColor)
-        XCTAssertNotNil(content.shadow, "Use local glyph contrast on light backgrounds.")
+        XCTAssertNil(content.shadow, "Clear glass must not composite a second shadow over the icon artwork.")
 
         appearance.frostAmount = ShelfAppearance.defaultFrostAmount
         backdrop.apply(appearance)

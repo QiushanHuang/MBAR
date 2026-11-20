@@ -4,6 +4,10 @@ public enum ShelfMaterial: String, Codable, CaseIterable, Sendable {
     case translucent, frosted, liquid, appleGlass
 }
 
+public enum ShelfIconTreatment: String, Codable, CaseIterable, Sendable {
+    case automatic, lightPlate, darkPlate
+}
+
 public struct ShelfTint: Codable, Equatable, Sendable {
     public let red: Double
     public let green: Double
@@ -21,21 +25,23 @@ public struct ShelfTint: Codable, Equatable, Sendable {
 }
 
 public struct ShelfAppearance: Codable, Equatable, Sendable {
-    fileprivate enum CodingKeys: String, CodingKey { case material, tint, intensity, opacity, frostAmount }
+    fileprivate enum CodingKeys: String, CodingKey { case material, tint, intensity, opacity, frostAmount, iconTreatment }
     public static let defaultFrostAmount = 0.35
     public var material: ShelfMaterial
     public var tint: ShelfTint
     public var intensity: Double
     public var opacity: Double
     public var frostAmount: Double
+    public var iconTreatment: ShelfIconTreatment
 
     public init(material: ShelfMaterial, tint: ShelfTint, intensity: Double, opacity: Double = 0.74,
-                frostAmount: Double = Self.defaultFrostAmount) {
+                frostAmount: Double = Self.defaultFrostAmount, iconTreatment: ShelfIconTreatment = .automatic) {
         self.material = material
         self.tint = tint
         self.intensity = ShelfTint.channel(intensity)
         self.opacity = opacity.isFinite ? min(1, max(0.25, opacity)) : 0.74
         self.frostAmount = ShelfTint.channel(frostAmount)
+        self.iconTreatment = iconTreatment
     }
 
     public init(from decoder: Decoder) throws {
@@ -46,12 +52,14 @@ public struct ShelfAppearance: Codable, Equatable, Sendable {
                   intensity: try fields.decode(Double.self, forKey: .intensity),
                   opacity: try fields.decodeIfPresent(Double.self, forKey: .opacity) ?? 0.74,
                   frostAmount: try fields.decodeIfPresent(Double.self, forKey: .frostAmount)
-                      ?? (material == .appleGlass ? 0 : Self.defaultFrostAmount))
+                      ?? (material == .appleGlass ? 0 : Self.defaultFrostAmount),
+                  iconTreatment: try fields.decodeIfPresent(String.self, forKey: .iconTreatment)
+                      .flatMap(ShelfIconTreatment.init(rawValue:)) ?? .automatic)
     }
 
     fileprivate var normalized: Self {
         .init(material: material, tint: .init(red: tint.red, green: tint.green, blue: tint.blue),
-              intensity: intensity, opacity: opacity, frostAmount: frostAmount)
+              intensity: intensity, opacity: opacity, frostAmount: frostAmount, iconTreatment: iconTreatment)
     }
 }
 

@@ -79,7 +79,7 @@ final class ShelfBackdropTests: XCTestCase {
                     XCTAssertEqual(optics.glass.style, .clear)
                     XCTAssertNil(optics.glass.hitTest(.zero))
                     XCTAssertEqual(content.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]), .darkAqua)
-                    XCTAssertNotNil(content.shadow)
+                    XCTAssertNil(content.shadow)
                 } else {
                     let regular = try XCTUnwrap(backdrop.subviews.first as? NSGlassEffectView)
                     XCTAssertEqual(regular.style, .regular)

@@ -222,6 +222,21 @@ struct ShelfAppearanceSettings: View {
             adjustment("着色强度", value: \.intensity, range: 0...1)
             if current.material == .appleGlass {
                 adjustment("磨砂强度", value: \.frostAmount, range: 0...1)
+                GridRow {
+                    Text("图标显示")
+                    Picker("图标显示", selection: Binding(get: { model.shelfAppearance.iconTreatment }, set: { treatment in
+                        var appearance = model.shelfAppearance
+                        appearance.iconTreatment = treatment
+                        model.setShelfAppearance(appearance)
+                    })) {
+                        Text("自动").tag(ShelfIconTreatment.automatic)
+                        Text("浅底深色").tag(ShelfIconTreatment.lightPlate)
+                        Text("深底浅色").tag(ShelfIconTreatment.darkPlate)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .help("选择单色图标的底色和笔画颜色。保留原色的图标会按自身亮度匹配底色。")
+                }
             }
             if current.material == .translucent {
                 adjustment("背景不透明度", value: \.opacity, range: 0.25...1)
@@ -362,7 +377,7 @@ private struct ShelfMaterialSample: NSViewRepresentable {
                 }
                 HStack(spacing: 4) {
                     ForEach(ShelfMaterialSample.symbols, id: \.self) { symbol in
-                        ShelfGlyph(systemName: symbol, onClearGlass: glass)
+                        ShelfGlyph(systemName: symbol, onClearGlass: glass, treatment: model.shelfAppearance.iconTreatment)
                             .frame(width: glyph.width, height: glyph.height)
                             .frame(width: cellWidth)
                     }
@@ -379,10 +394,10 @@ private struct ShelfMaterialSample: NSViewRepresentable {
 
         @ViewBuilder var tools: some View {
             if model.shelfLock.showsButton {
-                ShelfGlyph(systemName: "lock.open", onClearGlass: glass)
+                ShelfGlyph(systemName: "lock.open", onClearGlass: glass, treatment: model.shelfAppearance.iconTreatment)
                     .frame(width: 14, height: 14).frame(width: 28, height: 28)
             }
-            ShelfGlyph(systemName: "gearshape", onClearGlass: glass)
+            ShelfGlyph(systemName: "gearshape", onClearGlass: glass, treatment: model.shelfAppearance.iconTreatment)
                 .frame(width: 14, height: 14).frame(width: 28, height: 28)
         }
     }
