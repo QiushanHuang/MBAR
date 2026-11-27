@@ -21,19 +21,19 @@ MBAR gathers menu-bar icons into a configurable dropdown on macOS 27.
 Choose which apps stay visible, which go into the shelf, and which remain hidden.
 Open the shelf, then click a tool to reach its original menu.
 
-[**Download v0.7.2**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.7.2) ·
+[**Download v0.7.7**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.7.7) ·
 [Install](#install) · [Choose an icon](#choose-an-icon) ·
-[What's new](docs/releases/v0.7.2.md) · [Report an issue](https://github.com/QiushanHuang/MBAR/issues)
+[What's new](docs/releases/v0.7.7.md) · [Report an issue](https://github.com/QiushanHuang/MBAR/issues)
 
 ## What MBAR does
 
 - Choose a compact icon strip, labeled grid or list. Position the shelf at either screen edge, or under the MBAR entry with leftward, centered or rightward expansion.
-- Pick one of seven appearance presets or save your own. For Apple clear Liquid Glass, right-click the MBAR entry and choose **下拉栏外观预设 → 桌面水晶**. It starts at 35% frosting and 0% tint, with a soft center and refractive edges. In **设置 → 下拉栏 → 外观…**, adjust frosting separately from tint, or switch to soft glass, frosted or translucent material.
+- Pick one of eight appearance presets or save your own. For Apple clear Liquid Glass, right-click the MBAR entry and choose **下拉栏外观预设 → 桌面水晶**. It starts at 35% frosting and 0% tint, with a soft center and refractive edges. In **设置 → 下拉栏 → 外观…**, adjust frosting separately from tint, or switch to soft glass, frosted or translucent material.
 - Reads original menu-icon resources from supported apps. Automatic discovery also searches ordinary images, compiled `Assets.car` catalogs and Electron ASAR archives.
 - Lets you compare uncertain candidates, import your own image, or capture a currently visible native icon.
 - Keeps the shelf open with an optional lock, forwards left/right clicks, and provides a Show all recovery action.
 
-**v0.7.2 (build 21)** preserves fine icon details on clear glass and adds automatic, light and dark icon backings. The UI is in Simplified Chinese. Instructions below use the button labels shown in the app.
+**v0.7.7 (build 26)** adds **静透**. Right-click MBAR and choose **下拉栏外观预设 → 静透** to keep the original glass’s softer Settings-focused appearance when the shelf is unlocked. The appearance editor also offers background-adaptive, system, black and white foregrounds. The UI is in Simplified Chinese. Instructions below use the button labels shown in the app.
 
 Hiding uses a private macOS 27 interface and remains experimental. Saved artwork is static.
 Enable **刷新可见的原生图标** in Settings for periodic updates while the shelf is open.
@@ -47,7 +47,7 @@ speed text when a supported Clash Verge Rev installation exposes it. Manual artw
 Requires **macOS 27 and an Apple Silicon Mac**. Downloads are ad-hoc signed,
 without Developer ID signing or Apple notarization. There is no Intel build.
 
-1. Download the [DMG](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.2/MBAR-0.7.2-macos-arm64.dmg) or [ZIP](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.2/MBAR-0.7.2-macos-arm64.zip). Quit the running copy before upgrading.
+1. Download the [DMG](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.7/MBAR-0.7.7-macos-arm64.dmg) or [ZIP](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.7/MBAR-0.7.7-macos-arm64.zip). Quit the running copy before upgrading.
 2. Open the DMG and drag **MBAR** to **Applications**, then eject it. If you used the ZIP, extract it and move `MBAR.app` to Applications.
 3. Launch `/Applications/MBAR.app`. MBAR runs in the menu bar, without a Dock icon.
 4. If macOS blocks opening, review the download and use **System Settings → Privacy & Security → Open Anyway**. Keep Gatekeeper enabled.
@@ -56,10 +56,10 @@ without Developer ID signing or Apple notarization. There is no Intel build.
 Keep target apps enabled in **System Settings → Menu Bar → Allow in Menu Bar**.
 Turning them off there removes their menu items instead of collecting them in MBAR.
 
-To verify the DMG, compare the result of the following command with its entry in the [release checksums](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.2/SHA256SUMS.txt).
+To verify the DMG, compare the result of the following command with its entry in the [release checksums](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.7/SHA256SUMS.txt).
 
 ```sh
-shasum -a 256 MBAR-0.7.2-macos-arm64.dmg
+shasum -a 256 MBAR-0.7.7-macos-arm64.dmg
 ```
 
 ## Start here
@@ -199,7 +199,7 @@ Use macOS 27 with Xcode's Swift 6 toolchain. Release validation uses Swift 6.4 a
 ```sh
 git clone https://github.com/QiushanHuang/MBAR.git
 cd MBAR
-git checkout v0.7.2
+git checkout v0.7.7
 swift test
 swift test -c release
 ./scripts/build-app.sh
@@ -217,7 +217,7 @@ Terminal permission results do not prove that the GUI app is authorized. Unit te
 parsing and lifecycle behavior; installed-app capture and physical-display checks are separate.
 
 [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) ·
-[Release notes and validation](docs/releases/v0.7.2.md)
+[Release notes and validation](docs/releases/v0.7.7.md)
 
 Created and maintained by **[Qiushan (QiushanHuang)](https://github.com/QiushanHuang)**.
 [Contributors](CONTRIBUTORS.md) · [GPL-3.0](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
@@ -242,19 +242,19 @@ Created and maintained by **[Qiushan (QiushanHuang)](https://github.com/QiushanH
 MBAR 将 macOS 27 的菜单栏图标收进可调整位置和样式的下拉栏。
 你可以决定哪些应用常驻、哪些收入下拉栏、哪些一直隐藏，再从下拉栏打开它们的原菜单。
 
-[**下载 v0.7.2**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.7.2) ·
-[安装](#安装) · [选择图标](#选择图标) · [更新说明](docs/releases/v0.7.2.md#中文) ·
+[**下载 v0.7.7**](https://github.com/QiushanHuang/MBAR/releases/tag/v0.7.7) ·
+[安装](#安装) · [选择图标](#选择图标) · [更新说明](docs/releases/v0.7.7.md#中文) ·
 [反馈问题](https://github.com/QiushanHuang/MBAR/issues)
 
 ### 主要功能
 
 - 可选择图标条、网格和列表。在「入口下方」可选向左、居中或向右展开，也可贴当前显示器的左侧或右侧。
-- 七款外观预设支持自定义。右键 MBAR 入口，选择 **下拉栏外观预设 → 桌面水晶**，即可使用苹果清透液态玻璃。默认磨砂 35%、着色 0%，中央轻微柔化背景，圆角边缘产生折射。在 **设置 → 下拉栏 → 外观…** 可独立调整磨砂和着色，切换半透明、毛玻璃或柔光玻璃，并另存为个人预设。
+- 八款外观预设支持自定义。右键 MBAR 入口，选择 **下拉栏外观预设 → 桌面水晶**，即可使用苹果清透液态玻璃。默认磨砂 35%、着色 0%，中央轻微柔化背景，圆角边缘产生折射。在 **设置 → 下拉栏 → 外观…** 可独立调整磨砂和着色，切换半透明、毛玻璃或柔光玻璃，并另存为个人预设。
 - 读取已适配应用的原始菜单图标，也会自动搜索普通图片、`Assets.car` 图像资源库和 Electron ASAR 归档。
 - 候选不明确时手动选择，也支持导入图片、读取当前可见的原生图标。
 - 可锁定下拉栏，转发左右键操作，并随时显示全部图标、暂停隐藏。
 
-**v0.7.2（build 21）** 修复液态玻璃图标细节填白，新增自动、浅底深色和深底浅色三种显示方式。
+**v0.7.7（构建 26）** 新增「静透」。右键 MBAR，选择 **下拉栏外观预设 → 静透**，解锁后也能保留设置窗口获得焦点时原玻璃的透色和边缘折射。外观编辑器可选择随背景、跟随系统、固定黑色或固定白色前景。
 界面目前为简体中文。隐藏依赖 macOS 27 私有接口，仍属实验功能。
 保存的图标和快照是静态的。可在设置中开启「刷新可见的原生图标」。
 下拉栏打开时定期采样当前显示器上的可见项目。隐藏项目使用配置图标，Clash Verge Rev 提供网速文字时可更新数值。手选和导入的图标优先。
@@ -266,7 +266,7 @@ MBAR 将 macOS 27 的菜单栏图标收进可调整位置和样式的下拉栏�
 需要 **macOS 27 和 Apple Silicon Mac**。下载包采用 ad-hoc 签名，
 未经 Developer ID 签名或 Apple 公证，未提供 Intel 版本。
 
-1. 下载 [DMG 安装包](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.2/MBAR-0.7.2-macos-arm64.dmg) 或 [ZIP 压缩包](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.2/MBAR-0.7.2-macos-arm64.zip)。如果正在升级，先退出旧版 MBAR。
+1. 下载 [DMG 安装包](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.7/MBAR-0.7.7-macos-arm64.dmg) 或 [ZIP 压缩包](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.7/MBAR-0.7.7-macos-arm64.zip)。如果正在升级，先退出旧版 MBAR。
 2. 打开 DMG，将 **MBAR** 拖到 **Applications（应用程序）**，然后推出映像。也可解压 ZIP 后移动 `MBAR.app`。
 3. 从 `/Applications/MBAR.app` 启动。MBAR 只驻留菜单栏，不显示 Dock 图标。
 4. 若 macOS 阻止打开，确认下载来源后，在**系统设置 → 隐私与安全性 → 仍要打开**中放行，保持 Gatekeeper 开启。
@@ -274,10 +274,10 @@ MBAR 将 macOS 27 的菜单栏图标收进可调整位置和样式的下拉栏�
 
 请在系统的**菜单栏 → 允许在菜单栏中**保持目标应用开启；在那里关闭会移除菜单项目，而不是由 MBAR 收纳。
 
-校验 DMG 时，将以下命令的输出与[发行校验文件](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.2/SHA256SUMS.txt)中的对应行核对。
+校验 DMG 时，将以下命令的输出与[发行校验文件](https://github.com/QiushanHuang/MBAR/releases/download/v0.7.7/SHA256SUMS.txt)中的对应行核对。
 
 ```sh
-shasum -a 256 MBAR-0.7.2-macos-arm64.dmg
+shasum -a 256 MBAR-0.7.7-macos-arm64.dmg
 ```
 
 ### 快速开始
@@ -406,7 +406,7 @@ Codex、ScreenPilot、Docker Desktop、绿联 NAS、Macs Fan Control 和 Clash V
 ```sh
 git clone https://github.com/QiushanHuang/MBAR.git
 cd MBAR
-git checkout v0.7.2
+git checkout v0.7.7
 swift test
 swift test -c release
 ./scripts/build-app.sh
@@ -420,7 +420,7 @@ swift test -c release
 诊断加上 `--items` 会输出应用标识和坐标，分享前请检查内容。终端权限不代表 GUI 应用已授权。
 单元测试覆盖策略、解析与生命周期；安装版采集和多屏实机验收分别记录。
 
-[贡献指南](CONTRIBUTING.md) · [更新记录](CHANGELOG.md) · [版本说明与验证](docs/releases/v0.7.2.md#中文)
+[贡献指南](CONTRIBUTING.md) · [更新记录](CHANGELOG.md) · [版本说明与验证](docs/releases/v0.7.7.md#中文)
 
 作者与维护者：**[Qiushan（QiushanHuang）](https://github.com/QiushanHuang)**。
 [贡献署名](CONTRIBUTORS.md) · [GPL-3.0 许可](LICENSE) · [第三方声明](THIRD_PARTY_NOTICES.md)

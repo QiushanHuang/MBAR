@@ -3,6 +3,38 @@ import MBARCore
 @testable import MBAR
 
 final class ShelfAppearanceTests: XCTestCase {
+    @MainActor func testQuietGlassSelectionAndCustomSettingsSurviveUnlockAndRelaunch() throws {
+        let id = UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: id))
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(id)
+        defer {
+            defaults.removePersistentDomain(forName: id)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        func launch() -> AppModel {
+            AppModel(iconLibrary: IconLibrary(directory: directory), defaults: defaults)
+        }
+        let model = launch()
+        model.selectShelfPreset("quiet-glass")
+        let preset = model.shelfAppearance
+        XCTAssertEqual(preset.material, .quietGlass)
+        XCTAssertTrue(preset.material.usesGlassForeground)
+        var variation = preset
+        variation.frostAmount = 0.23
+        variation.iconTreatment = .system
+        model.setShelfAppearance(variation)
+        model.toggleShelfLock()
+        model.toggleShelfLock()
+        XCTAssertEqual(model.shelfAppearance, variation)
+        let reopened = launch()
+        XCTAssertEqual(reopened.selectedShelfPresetID, "quiet-glass")
+        XCTAssertEqual(reopened.shelfAppearance, variation)
+        reopened.selectShelfPreset("quiet-glass")
+        XCTAssertEqual(reopened.shelfAppearance, preset)
+        reopened.selectShelfPreset("apple-glass")
+        XCTAssertEqual(reopened.shelfAppearance.material, .appleGlass)
+    }
+
     @MainActor func testWorkingVariationPersistsWithoutOverwritingPreset() throws {
         let suite = UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -98,19 +130,33 @@ final class ShelfAppearanceTests: XCTestCase {
         XCTAssertEqual(preferences.appearance.iconTreatment, .automatic)
         XCTAssertEqual(preferences.customPresets[0].appearance, preferences.appearance)
         var variation = preferences.appearance
-        variation.iconTreatment = .darkPlate
+        variation.iconTreatment = .system
         preferences.customize(variation)
         XCTAssertTrue(preferences.save(named: "入夜"))
         let copy = preferences.selectedID
-        variation.iconTreatment = .lightPlate
+        variation.iconTreatment = .darkInk
         preferences.customize(variation)
         preferences = try JSONDecoder().decode(ShelfAppearancePreferences.self, from: JSONEncoder().encode(preferences))
         XCTAssertEqual(preferences.appearance, variation)
         preferences.select(copy)
-        XCTAssertEqual(preferences.appearance.iconTreatment, .darkPlate)
+        XCTAssertEqual(preferences.appearance.iconTreatment, .system)
         preferences.select("custom.old")
         XCTAssertEqual(preferences.appearance.iconTreatment, .automatic)
         XCTAssertEqual(preferences.appearance.intensity, 0.45)
+    }
+
+    func testSavedPlatePreferencesRestoreOnlyTheForegroundPolarity() throws {
+        for (old, ink) in [("lightPlate", ShelfIconTreatment.darkInk), ("darkPlate", .lightInk),
+                           ("unknown", .automatic)] {
+            let json = """
+                {"material":"appleGlass","tint":{"red":0.2,"green":0.3,"blue":0.4},"intensity":0.15,"iconTreatment":"\(old)"}
+                """
+            let recovered = try JSONDecoder().decode(ShelfAppearance.self, from: Data(json.utf8))
+            XCTAssertEqual(recovered.iconTreatment, ink)
+            let saved = try JSONEncoder().encode(recovered)
+            XCTAssertFalse(String(decoding: saved, as: UTF8.self).contains(old))
+            XCTAssertEqual(try JSONDecoder().decode(ShelfAppearance.self, from: saved), recovered)
+        }
     }
 
     func testFactoryFrostMigrationPreservesCustomGlassAndExplicitZero() throws {

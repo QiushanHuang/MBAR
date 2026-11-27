@@ -33,13 +33,14 @@ final class ShelfContentLayoutTests: XCTestCase {
         window.contentView = editor
         window.orderFrontRegardless()
         defer { window.orderOut(nil) }
-        for material: ShelfMaterial in [.frosted, .appleGlass, .liquid, .appleGlass, .translucent, .appleGlass] {
+        for material: ShelfMaterial in [.frosted, .appleGlass, .liquid, .quietGlass, .translucent, .appleGlass] {
             var appearance = model.shelfAppearance
             appearance.material = material
             model.setShelfAppearance(appearance)
             editor.layoutSubtreeIfNeeded()
             RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.06))
             let backdrop = try XCTUnwrap(descendant(ShelfBackdrop.self, in: editor))
+            XCTAssertEqual(backdrop.layer?.cornerRadius, 16)
             let host = backdrop.content
             let frame = host.convert(host.bounds, to: backdrop)
             XCTAssertEqual(frame, backdrop.bounds, "Preview host must occupy its rendered material for \(material)")
@@ -58,7 +59,7 @@ final class ShelfContentLayoutTests: XCTestCase {
             panel.contentView = backdrop
             panel.orderFrontRegardless()
             defer { panel.orderOut(nil) }
-            for (material, width): (ShelfMaterial, CGFloat) in [(.liquid, 208), (.appleGlass, 288), (.translucent, 184), (.appleGlass, 242)] {
+            for (material, width): (ShelfMaterial, CGFloat) in [(.liquid, 208), (.appleGlass, 288), (.quietGlass, 320), (.translucent, 184), (.appleGlass, 242)] {
                 var appearance = model.shelfAppearance
                 appearance.material = material
                 backdrop.apply(appearance)

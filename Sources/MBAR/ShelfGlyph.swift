@@ -34,36 +34,23 @@ struct ShelfGlyph: View {
     }
 
     var body: some View {
-        let clear = onClearGlass && (!reduceTransparency || treatment != .automatic)
-        let template: Bool = image.map {
-            $0.isTemplate || (clear && !preservesOriginalInk && Self.usesSingleInk($0))
+        let template = image.map {
+            $0.isTemplate || (onClearGlass && (!reduceTransparency || treatment != .automatic) && !preservesOriginalInk && Self.usesSingleInk($0))
         } ?? true
-        let lightPlate: Bool = {
-            guard clear else { return false }
-            // An original may be pure black or white. Choose its backing from
-            // the artwork; changing icon ink only applies to template drawings.
-            if !template, let image { return Self.analysis(of: image).darkArtwork }
-            return treatment == .lightPlate
-        }()
-        // The automatic shelf keeps one ink polarity for native templates even
-        // when different apps encode their masks as black or white pixels.
-        let backingOpacity = treatment == .automatic ? 0.76 : 0.94
         let source = image.map(Image.init(nsImage:)) ?? Image(systemName: symbol)
-        let ordinaryInk: Color = image == nil ? (selected ? .accentColor : .secondary) : .primary
-        source
-            .renderingMode(template ? .template : .original)
-            .resizable()
-            .interpolation(.high)
-            .scaledToFit()
-            .foregroundStyle(clear ? (lightPlate ? Color.black : Color.white) : ordinaryInk)
-            .background {
-                if clear {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill((lightPlate ? Color.white : Color(white: 0.075))
-                            .opacity(contrast == .increased || reduceTransparency ? 1 : backingOpacity))
-                        .padding(-2)
-                }
-            }
+        let glyph = source.renderingMode(template ? .template : .original)
+            .resizable().interpolation(.high).scaledToFit()
+        if template {
+            glyph.shelfInk(clearGlass: onClearGlass, treatment: treatment,
+                           secondary: image == nil && !onClearGlass, selected: selected)
+        } else if onClearGlass && !reduceTransparency, let image {
+            // Preserve original RGB; only the edge needs separation from a like-colored background.
+            let dark = Self.analysis(of: image).darkArtwork
+            glyph.shadow(color: (dark ? Color.white : Color.black).opacity(contrast == .increased ? 1 : 0.85),
+                         radius: 0.85, y: 0.5)
+        } else {
+            glyph
+        }
     }
 
     private final class ArtworkAnalysis: NSObject {
@@ -78,7 +65,7 @@ struct ShelfGlyph: View {
             }
             singleInk = IconInkProfile.isTemplateCandidate(cg)
             // Area-average premultiplied RGBA without flattening onto black.
-            // This swatch only selects a backing; source pixels are never modified.
+            // This swatch only selects the shadow; source pixels are never modified.
             let side = 24
             var pixels = [UInt8](repeating: 0, count: side * side * 4)
             darkArtwork = pixels.withUnsafeMutableBytes { buffer in

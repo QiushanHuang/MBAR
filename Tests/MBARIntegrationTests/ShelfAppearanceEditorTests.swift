@@ -52,5 +52,11 @@ final class ShelfAppearanceEditorTests: XCTestCase {
         frost.keyDown(with: right)
         XCTAssertEqual(model.shelfAppearance.frostAmount, 0.36, accuracy: 0.001)
         XCTAssertEqual(model.shelfAppearance.intensity, 0)
+        model.selectShelfPreset("quiet-glass")
+        layout()
+        let quietFrost = try XCTUnwrap(sliders(host).first { $0.accessibilityLabel() == "磨砂强度" })
+        XCTAssertEqual(quietFrost.doubleValue, model.shelfAppearance.frostAmount, accuracy: 0.001)
+        quietFrost.keyDown(with: right)
+        XCTAssertEqual(model.shelfAppearance.frostAmount, 0.58, accuracy: 0.001)
     }
 }

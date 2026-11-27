@@ -9,6 +9,7 @@ private extension ShelfMaterial {
         case .frosted: return "毛玻璃"
         case .liquid: return "柔光玻璃"
         case .appleGlass: return "苹果液态玻璃"
+        case .quietGlass: return "静透玻璃"
         }
     }
 }
@@ -197,7 +198,7 @@ struct ShelfAppearanceSettings: View {
                     appearance.material = material
                     model.setShelfAppearance(appearance)
                 })) {
-                    ForEach([ShelfMaterial.translucent, .frosted, .liquid, .appleGlass], id: \.self) { Text($0.title).tag($0) }
+                    ForEach(ShelfMaterial.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
@@ -220,22 +221,23 @@ struct ShelfAppearanceSettings: View {
                 }
             }
             adjustment("着色强度", value: \.intensity, range: 0...1)
-            if current.material == .appleGlass {
+            if current.material.usesGlassForeground {
                 adjustment("磨砂强度", value: \.frostAmount, range: 0...1)
                 GridRow {
-                    Text("图标显示")
-                    Picker("图标显示", selection: Binding(get: { model.shelfAppearance.iconTreatment }, set: { treatment in
+                    Text("前景颜色")
+                    Picker("前景颜色", selection: Binding(get: { model.shelfAppearance.iconTreatment }, set: { treatment in
                         var appearance = model.shelfAppearance
                         appearance.iconTreatment = treatment
                         model.setShelfAppearance(appearance)
                     })) {
-                        Text("自动").tag(ShelfIconTreatment.automatic)
-                        Text("浅底深色").tag(ShelfIconTreatment.lightPlate)
-                        Text("深底浅色").tag(ShelfIconTreatment.darkPlate)
+                        Text("随背景").tag(ShelfIconTreatment.automatic)
+                        Text("跟随系统").tag(ShelfIconTreatment.system)
+                        Text("固定黑色").tag(ShelfIconTreatment.darkInk)
+                        Text("固定白色").tag(ShelfIconTreatment.lightInk)
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .help("选择单色图标的底色和笔画颜色。保留原色的图标会按自身亮度匹配底色。")
+                    .help("随背景按每个项目下方的明暗选色。跟随系统在浅色外观用黑色、深色外观用白色。彩色原图保留原色。")
                 }
             }
             if current.material == .translucent {
@@ -365,7 +367,7 @@ private struct ShelfMaterialSample: NSViewRepresentable {
 
     private struct SampleIcons: View {
         @ObservedObject var model: AppModel
-        private var glass: Bool { model.shelfAppearance.material == .appleGlass }
+        private var glass: Bool { model.shelfAppearance.material.usesGlassForeground }
 
         var body: some View {
             let glyph = ShelfMetrics.glyphSize(ShelfMaterialSample.artwork, scale: model.shelfIconScale)
@@ -390,6 +392,7 @@ private struct ShelfMaterialSample: NSViewRepresentable {
             }
             .padding(.horizontal, ShelfMetrics.stripInset)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .shelfInkSurface(clearGlass: glass, treatment: model.shelfAppearance.iconTreatment)
         }
 
         @ViewBuilder var tools: some View {

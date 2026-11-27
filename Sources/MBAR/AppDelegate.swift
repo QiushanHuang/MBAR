@@ -262,7 +262,8 @@ final class ShelfPanel: NSPanel {
         shelf = panel
         panel.setFrame(frame, display: true)
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        panel.alphaValue = reduceMotion ? 1 : 0
+        let shelfWindows = [panel as NSWindow] + (panel.childWindows ?? [])
+        for window in shelfWindows { window.alphaValue = reduceMotion ? 1 : 0 }
         panel.makeKeyAndOrderFront(nil)
         let primaryTop = NSScreen.screens.first?.frame.maxY ?? screen.frame.maxY
         let display = CGRect(x: screen.frame.minX, y: primaryTop - screen.frame.maxY, width: screen.frame.width, height: screen.frame.height)
@@ -274,7 +275,7 @@ final class ShelfPanel: NSPanel {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.12
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                panel.animator().alphaValue = 1
+                for window in shelfWindows { window.animator().alphaValue = 1 }
             }
         }
         statusItem.button?.image = NSImage(systemSymbolName: "chevron.up", accessibilityDescription: "收起 MBAR")

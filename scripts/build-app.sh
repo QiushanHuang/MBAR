@@ -29,8 +29,8 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <key>CFBundleExecutable</key><string>MBAR</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.7.2</string>
-<key>CFBundleVersion</key><string>21</string>
+<key>CFBundleShortVersionString</key><string>0.7.7</string>
+<key>CFBundleVersion</key><string>26</string>
 <key>LSMinimumSystemVersion</key><string>27.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>

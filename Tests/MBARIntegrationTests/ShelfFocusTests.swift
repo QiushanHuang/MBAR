@@ -72,6 +72,7 @@ final class ShelfFocusTests: XCTestCase {
                             element: AXUIElementCreateApplication(getpid()), frame: nil)
         }
         model.policy = ShelfPolicy(assignments: Dictionary(uniqueKeysWithValues: model.items.map { ($0.bundle, .automatic) }))
+        model.selectShelfPreset("apple-glass")
         for style in ShelfStyle.allCases {
             model.shelfStyle = style
             let size = ShelfMetrics.size(style: style, itemWidths: Array(repeating: 28, count: model.items.count),

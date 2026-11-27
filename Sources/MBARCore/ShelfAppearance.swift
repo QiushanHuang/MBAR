@@ -1,11 +1,22 @@
 import Foundation
 
 public enum ShelfMaterial: String, Codable, CaseIterable, Sendable {
-    case translucent, frosted, liquid, appleGlass
+    case translucent, frosted, liquid, appleGlass, quietGlass
+
+    public var usesGlassForeground: Bool { self == .appleGlass || self == .quietGlass }
 }
 
 public enum ShelfIconTreatment: String, Codable, CaseIterable, Sendable {
-    case automatic, lightPlate, darkPlate
+    case automatic, system, darkInk, lightInk
+
+    public init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        switch value {
+        case "lightPlate": self = .darkInk
+        case "darkPlate": self = .lightInk
+        default: self = Self(rawValue: value) ?? .automatic
+        }
+    }
 }
 
 public struct ShelfTint: Codable, Equatable, Sendable {
@@ -53,8 +64,7 @@ public struct ShelfAppearance: Codable, Equatable, Sendable {
                   opacity: try fields.decodeIfPresent(Double.self, forKey: .opacity) ?? 0.74,
                   frostAmount: try fields.decodeIfPresent(Double.self, forKey: .frostAmount)
                       ?? (material == .appleGlass ? 0 : Self.defaultFrostAmount),
-                  iconTreatment: try fields.decodeIfPresent(String.self, forKey: .iconTreatment)
-                      .flatMap(ShelfIconTreatment.init(rawValue:)) ?? .automatic)
+                  iconTreatment: try fields.decodeIfPresent(ShelfIconTreatment.self, forKey: .iconTreatment) ?? .automatic)
     }
 
     fileprivate var normalized: Self {
@@ -73,6 +83,7 @@ public struct ShelfAppearancePreset: Identifiable, Codable, Equatable, Sendable 
         .init(id: "frost", name: "原生雾面", appearance: .init(material: .frosted, tint: .init(red: 0.76, green: 0.81, blue: 0.88), intensity: 0)),
         .init(id: "clear", name: "柔光原色", appearance: .init(material: .liquid, tint: .init(red: 0.8, green: 0.92, blue: 1), intensity: 0)),
         .init(id: "apple-glass", name: "桌面水晶", appearance: .init(material: .appleGlass, tint: .init(red: 0.76, green: 0.91, blue: 1), intensity: 0)),
+        .init(id: "quiet-glass", name: "静透", appearance: .init(material: .quietGlass, tint: .init(red: 0.20, green: 0.24, blue: 0.31), intensity: 0.11, frostAmount: 0.57, iconTreatment: .lightInk)),
         .init(id: "smoke", name: "烟灰", appearance: .init(material: .translucent, tint: .init(red: 0.20, green: 0.24, blue: 0.31), intensity: 0.72, opacity: 0.84)),
         .init(id: "lagoon", name: "海盐蓝", appearance: .init(material: .liquid, tint: .init(red: 0.16, green: 0.59, blue: 0.86), intensity: 0.65)),
         .init(id: "jade", name: "青玉", appearance: .init(material: .frosted, tint: .init(red: 0.16, green: 0.67, blue: 0.50), intensity: 0.64)),

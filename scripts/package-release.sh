@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-release_dir="${1:-$PWD/dist/release-0.7.2}"
+release_dir="${1:-$PWD/dist/release-0.7.7}"
 case "$release_dir" in /*) ;; *) echo 'Use an absolute release directory.' >&2; exit 1 ;; esac
 if [[ -e "$release_dir" ]]; then
   echo "Output already exists; choose a new directory: $release_dir" >&2

@@ -327,6 +327,7 @@ struct ShelfView: View {
                         }
                         .frame(height: itemHeight)
                         .clipped()
+                        .shelfInkViewport()
                     }
                     if !toolsOnLeft {
                         Divider().frame(height: 16)
@@ -362,6 +363,7 @@ struct ShelfView: View {
                             }
                         }
                         .clipped()
+                        .shelfInkViewport()
                         .padding(ShelfMetrics.bodyInset)
                     }
                     HStack(spacing: 2) {
@@ -372,8 +374,7 @@ struct ShelfView: View {
                         if !items.isEmpty {
                             Text("\(items.count) 个项目")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .modifier(ShelfTextContrast(clearGlass: clearGlass))
+                                .shelfInk(clearGlass: clearGlass, treatment: model.shelfAppearance.iconTreatment, secondary: true)
                                 .padding(toolsOnLeft ? .trailing : .leading, 6)
                         }
                         if !toolsOnLeft {
@@ -388,18 +389,18 @@ struct ShelfView: View {
             }
         }
         .frame(width: width, height: height)
+        .shelfInkSurface(clearGlass: clearGlass, treatment: model.shelfAppearance.iconTreatment)
     }
 
     private var toolsOnLeft: Bool { model.shelfToolsSide == .left }
     private var toolCount: Int { model.shelfLock.showsButton ? 2 : 1 }
-    private var clearGlass: Bool { model.shelfAppearance.material == .appleGlass }
+    private var clearGlass: Bool { model.shelfAppearance.material.usesGlassForeground }
 
     private var emptyState: some View {
         Label("尚未收入应用", systemImage: "tray")
             .font(.callout)
-            .foregroundStyle(.secondary)
             .lineLimit(1)
-            .modifier(ShelfTextContrast(clearGlass: clearGlass))
+            .shelfInk(clearGlass: clearGlass, treatment: model.shelfAppearance.iconTreatment, secondary: true)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -421,20 +422,20 @@ struct ShelfView: View {
                     VStack(spacing: 4) {
                         icon
                         Text(item.name).font(.caption).lineLimit(1)
-                            .modifier(ShelfTextContrast(clearGlass: clearGlass))
+                            .shelfInk(clearGlass: clearGlass, treatment: model.shelfAppearance.iconTreatment)
                     }
                     .padding(.horizontal, 4)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.quaternary.opacity(0.48), in: RoundedRectangle(cornerRadius: 7))
+                    .background(.quaternary.opacity(clearGlass ? 0 : 0.48), in: RoundedRectangle(cornerRadius: 7))
                 case .list:
                     HStack(spacing: 9) {
                         icon.frame(width: min(max(38, glyphSize.width), width * 0.42))
                         Text(item.name).font(.body).lineLimit(1)
-                            .modifier(ShelfTextContrast(clearGlass: clearGlass))
+                            .shelfInk(clearGlass: clearGlass, treatment: model.shelfAppearance.iconTreatment)
                         Spacer(minLength: 2)
                         Image(systemName: image == nil ? "slider.horizontal.3" : "chevron.forward")
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                            .shelfInk(clearGlass: clearGlass, treatment: model.shelfAppearance.iconTreatment, secondary: true)
                     }
                     .padding(.horizontal, 8)
                 }
@@ -479,27 +480,13 @@ struct ShelfView: View {
             ShelfGlyph(systemName: symbol, onClearGlass: clearGlass, treatment: model.shelfAppearance.iconTreatment, selected: selected)
                 .frame(width: 14, height: 14)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(selected ? Color.accentColor.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 6))
+                .background(selected && !clearGlass ? Color.accentColor.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 6))
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
             ShelfTarget(label: label, help: "", enabled: true, focus: focus, order: order,
                         row: row, column: column, allowsRightClick: false) { _ in action() }
         }
         .frame(width: 28, height: 28)
-    }
-}
-
-/// Only labels receive a text shadow. Icon transparency already has a local backing.
-private struct ShelfTextContrast: ViewModifier {
-    let clearGlass: Bool
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
-    @ViewBuilder func body(content: Content) -> some View {
-        if clearGlass && !reduceTransparency {
-            content.foregroundStyle(.white).shadow(color: .black, radius: 1, y: 0.5)
-        } else {
-            content
-        }
     }
 }
 

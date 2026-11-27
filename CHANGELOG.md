@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.7 — 2026-11-27
+
+- The **静透** preset uses the original clear glass in its Settings-focused appearance, including its color transmission and refractive rim. Unlocking the shelf keeps that appearance. All materials share the same outer corners across shelf layouts.
+
+- Choose fixed black, fixed white, system appearance or background-adaptive ink for clear-glass symbols and labels.
+
+- Clear-glass shelf icons and labels share a single glass surface. Automatic foreground ink chooses one color per glyph or label from its background and retains the alpha of fine artwork. Light and dark foreground overrides replace the previous icon backings. Original-color icons keep their artwork.
+
 ## 0.7.2 — 2026-11-20
 
 - Clear-glass shelf icons draw the source alpha once, keeping narrow openings and multi-level status indicators visible. Local contrast backgrounds support automatic, light and dark ink treatments in the appearance editor.
@@ -74,6 +82,14 @@ artwork, limited adapters and physical-display compatibility limits are document
 in the README. Local prototype versions before 0.4.0 were not GitHub releases.
 
 ## 中文
+
+### 0.7.7 — 2026-11-27
+
+- 「静透玻璃」直接使用原玻璃在设置窗口获得焦点时的材质，解锁后保留相同的透色、磨砂和边缘折射。所有下拉栏材质、布局和外观预览共用同一套外圆角。
+
+- 玻璃前景颜色可选固定黑色、固定白色、跟随系统外观或随背景。
+
+- 苹果液态玻璃上的图标和文字直接显示在同一片玻璃上。每枚图标、每段文字分别按整体背景明暗选色，跨越边界时笔画保持同色，保留细线、镂空与状态读数；也可手选浅色或深色前景。旧的衬底偏好会沿用对应的笔画颜色。
 
 ### 0.7.2 — 2026-11-20
 

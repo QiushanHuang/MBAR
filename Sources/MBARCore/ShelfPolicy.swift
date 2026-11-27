@@ -55,6 +55,11 @@ public enum ShelfIconScale {
 }
 
 public enum ShelfMetrics {
+    /// Outer curvature of the reference glass shelf, shared by the strip, grid and list.
+    public static func cornerRadius(for size: CGSize) -> CGFloat {
+        max(0, min(16, min(size.width, size.height) / 2))
+    }
+
     public static let referenceIconHeight: CGFloat = 18
     public static let standardGlyphHeightLimit: CGFloat = 24
     public static let stripInset: CGFloat = 8
